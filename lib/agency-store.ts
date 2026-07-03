@@ -6,20 +6,30 @@ import type {
   SavedRequest,
 } from "@/types/agency";
 import type { CustomerAppData, CustomerRequest } from "@/types/customer";
-
-function normalizeMessage(message: ChatMessage): ChatMessage {
-  const sentAt = message.sentAt ?? message.createdAt ?? new Date().toISOString();
-  return {
-    ...message,
-    sentAt,
-    status: message.status ?? "delivered",
-    deliveredAt: message.deliveredAt ?? sentAt,
-  };
-}
-
-function normalizeMessages(messages: ChatMessage[]): ChatMessage[] {
-  return messages.map(normalizeMessage);
-}
+import {
+  deleteChatMessage as deleteChatMessageRemote,
+  deleteChatThread as deleteChatThreadRemote,
+  getUnreadCount as getUnreadCountRemote,
+  fetchMessagesForThread,
+  fetchThreadsForAgency,
+  fetchThreadsForCustomer,
+  markThreadAsRead as markThreadAsReadRemote,
+  sendChatMessage as sendChatMessageRemote,
+  startChatWithCustomer as startChatWithCustomerRemote,
+} from "@/lib/supabase/chat";
+import {
+  createListing,
+  fetchAgencyListingById,
+  fetchListingsForAgency,
+  updateListing,
+} from "@/lib/supabase/listings";
+import {
+  fetchAllOpenRequests,
+  fetchCustomerRequestById,
+  fetchSavedRequestsForAgency,
+  isRequestSaved as isRequestSavedRemote,
+  toggleSavedRequest as toggleSavedRequestRemote,
+} from "@/lib/supabase/requests";
 
 export interface PlatformData extends CustomerAppData {
   agencies: Agency[];
@@ -57,7 +67,7 @@ export function readPlatformData(): PlatformData {
       listings: parsed.listings ?? [],
       savedRequests: parsed.savedRequests ?? [],
       threads: parsed.threads ?? [],
-      messages: normalizeMessages(parsed.messages ?? []),
+      messages: parsed.messages ?? [],
     };
   } catch {
     const empty = emptyPlatformData();
@@ -79,7 +89,13 @@ function emptyPlatformData(): PlatformData {
 }
 
 export function writePlatformData(data: PlatformData) {
-  localStorage.setItem(PLATFORM_DATA_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(PLATFORM_DATA_KEY, JSON.stringify(data));
+  } catch {
+    throw new Error(
+      "Browser storage is full. Try removing old requests or using fewer photos.",
+    );
+  }
   window.dispatchEvent(new Event("findly-platform-change"));
   window.dispatchEvent(new Event("findly-customer-change"));
 }
@@ -101,22 +117,14 @@ export function getCurrentAgency(): Agency | null {
   return readPlatformData().agencies.find((agency) => agency.id === id) ?? null;
 }
 
-export function getAllOpenRequests(): CustomerRequest[] {
-  return readPlatformData()
-    .requests.filter((request) => request.status === "open")
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+export async function getAllOpenRequests(): Promise<CustomerRequest[]> {
+  return fetchAllOpenRequests();
 }
 
-export function getCustomerRequestById(
+export async function getCustomerRequestById(
   requestId: string,
-): CustomerRequest | null {
-  return (
-    readPlatformData().requests.find((request) => request.id === requestId) ??
-    null
-  );
+): Promise<CustomerRequest | null> {
+  return fetchCustomerRequestById(requestId);
 }
 
 export function signupAgency(input: {
@@ -197,269 +205,113 @@ export function logoutAgency() {
   setAgencySessionId(null);
 }
 
-export function isRequestSaved(agencyId: string, requestId: string): boolean {
-  return readPlatformData().savedRequests.some(
-    (entry) => entry.agencyId === agencyId && entry.requestId === requestId,
-  );
-}
-
-export function toggleSavedRequest(
+export async function isRequestSaved(
   agencyId: string,
   requestId: string,
-): boolean {
-  const data = readPlatformData();
-  const existingIndex = data.savedRequests.findIndex(
-    (entry) => entry.agencyId === agencyId && entry.requestId === requestId,
-  );
-
-  if (existingIndex >= 0) {
-    data.savedRequests.splice(existingIndex, 1);
-    writePlatformData(data);
-    return false;
-  }
-
-  data.savedRequests.unshift({
-    agencyId,
-    requestId,
-    savedAt: new Date().toISOString(),
-  });
-  writePlatformData(data);
-  return true;
+): Promise<boolean> {
+  return isRequestSavedRemote(agencyId, requestId);
 }
 
-export function getSavedRequestsForAgency(
+export async function toggleSavedRequest(
   agencyId: string,
-): CustomerRequest[] {
-  const data = readPlatformData();
-  const ids = new Set(
-    data.savedRequests
-      .filter((entry) => entry.agencyId === agencyId)
-      .map((entry) => entry.requestId),
-  );
-
-  return data.requests.filter((request) => ids.has(request.id));
+  requestId: string,
+): Promise<boolean> {
+  return toggleSavedRequestRemote(agencyId, requestId);
 }
 
-export function getListingsForAgency(agencyId: string): AgencyListing[] {
-  return readPlatformData()
-    .listings.filter((listing) => listing.agencyId === agencyId)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+export async function getSavedRequestsForAgency(
+  agencyId: string,
+): Promise<CustomerRequest[]> {
+  return fetchSavedRequestsForAgency(agencyId);
 }
 
-export function createAgencyListing(
+export async function getListingsForAgency(
+  agencyId: string,
+): Promise<AgencyListing[]> {
+  return fetchListingsForAgency(agencyId);
+}
+
+export async function getAgencyListingById(
+  listingId: string,
+): Promise<AgencyListing | null> {
+  return fetchAgencyListingById(listingId);
+}
+
+export async function createAgencyListing(
   agency: Agency,
   input: Omit<AgencyListing, "id" | "agencyId" | "agencyName" | "createdAt">,
-): AgencyListing {
-  const data = readPlatformData();
-  const listing: AgencyListing = {
-    ...input,
-    id: createId("listing"),
-    agencyId: agency.id,
-    agencyName: agency.agencyName ?? agency.contactName,
-    createdAt: new Date().toISOString(),
-  };
-
-  data.listings.unshift(listing);
-  writePlatformData(data);
-  return listing;
+): Promise<AgencyListing> {
+  return createListing(agency, input);
 }
 
-export function startChatWithCustomer(
+export async function updateAgencyListing(
+  agencyId: string,
+  listingId: string,
+  updates: Omit<
+    AgencyListing,
+    "id" | "agencyId" | "agencyName" | "createdAt"
+  >,
+  agencyName?: string,
+): Promise<AgencyListing> {
+  return updateListing(agencyId, listingId, updates, agencyName);
+}
+
+export async function startChatWithCustomer(
   agency: Agency,
   request: CustomerRequest,
-): ChatThread {
-  const data = readPlatformData();
-  const existing = data.threads.find(
-    (thread) =>
-      thread.requestId === request.id && thread.agencyId === agency.id,
-  );
-
-  if (existing) return existing;
-
-  const thread: ChatThread = {
-    id: createId("thread"),
-    requestId: request.id,
-    requestTitle: `${request.city}, ${request.region}`,
-    customerId: request.customerId,
-    customerName: request.customerName,
-    agencyId: agency.id,
-    agencyName: agency.agencyName ?? agency.contactName,
-    updatedAt: new Date().toISOString(),
-  };
-
-  const now = new Date().toISOString();
-  const intro: ChatMessage = {
-    id: createId("msg"),
-    threadId: thread.id,
-    senderId: agency.id,
-    senderName: agency.agencyName ?? agency.contactName,
-    senderRole: "agency",
-    body: `Hello ${request.customerName}, we reviewed your request for ${request.city} and may have a suitable property. Would you be open to an online or in-person meeting this week?`,
-    sentAt: now,
-    deliveredAt: now,
-    status: "delivered",
-  };
-
-  thread.lastMessage = intro.body;
-  data.threads.unshift(thread);
-  data.messages.push(intro);
-  writePlatformData(data);
-  return thread;
+): Promise<ChatThread> {
+  return startChatWithCustomerRemote(agency, request);
 }
 
-export function getThreadsForAgency(agencyId: string): ChatThread[] {
-  return readPlatformData()
-    .threads.filter(
-      (thread) => thread.agencyId === agencyId && !thread.deletedByAgency,
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
+export async function getThreadsForAgency(
+  agencyId: string,
+): Promise<ChatThread[]> {
+  return fetchThreadsForAgency(agencyId);
 }
 
-export function getThreadsForCustomer(customerId: string): ChatThread[] {
-  return readPlatformData()
-    .threads.filter(
-      (thread) => thread.customerId === customerId && !thread.deletedByCustomer,
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
+export async function getThreadsForCustomer(
+  customerId: string,
+): Promise<ChatThread[]> {
+  return fetchThreadsForCustomer(customerId);
 }
 
-export function getMessagesForThread(threadId: string): ChatMessage[] {
-  return readPlatformData()
-    .messages.filter((message) => message.threadId === threadId)
-    .map(normalizeMessage)
-    .sort(
-      (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
-    );
+export async function getMessagesForThread(
+  threadId: string,
+): Promise<ChatMessage[]> {
+  return fetchMessagesForThread(threadId);
 }
 
-export function sendChatMessage(
+export async function sendChatMessage(
   threadId: string,
   sender: { id: string; name: string; role: "customer" | "agency" },
-  body: string,
-): ChatMessage | null {
-  const data = readPlatformData();
-  const threadIndex = data.threads.findIndex((thread) => thread.id === threadId);
-  if (threadIndex === -1) return null;
-
-  const now = new Date().toISOString();
-  const message: ChatMessage = {
-    id: createId("msg"),
-    threadId,
-    senderId: sender.id,
-    senderName: sender.name,
-    senderRole: sender.role,
-    body,
-    sentAt: now,
-    deliveredAt: now,
-    status: "delivered",
-  };
-
-  data.messages.push(message);
-  const thread = data.threads[threadIndex];
-  data.threads[threadIndex] = {
-    ...thread,
-    lastMessage: body,
-    updatedAt: now,
-    deletedByCustomer: false,
-    deletedByAgency: false,
-  };
-
-  writePlatformData(data);
-  return message;
+  payload: string | { body: string; attachments?: import("@/types/agency").ChatAttachment[] },
+): Promise<ChatMessage | null> {
+  return sendChatMessageRemote(threadId, sender, payload);
 }
 
-export function markThreadAsRead(
+export async function markThreadAsRead(
   threadId: string,
   reader: { id: string; role: "customer" | "agency" },
-) {
-  const data = readPlatformData();
-  const threadIndex = data.threads.findIndex((thread) => thread.id === threadId);
-  if (threadIndex === -1) return;
-
-  const now = new Date().toISOString();
-  const thread = data.threads[threadIndex];
-
-  data.threads[threadIndex] = {
-    ...thread,
-    customerLastReadAt:
-      reader.role === "customer" ? now : thread.customerLastReadAt,
-    agencyLastReadAt: reader.role === "agency" ? now : thread.agencyLastReadAt,
-  };
-
-  data.messages = data.messages.map((message) => {
-    if (message.threadId !== threadId) return message;
-    if (message.senderRole === reader.role) return message;
-
-    const normalized = normalizeMessage(message);
-    return {
-      ...normalized,
-      status: "read",
-      readAt: now,
-    };
-  });
-
-  writePlatformData(data);
+): Promise<void> {
+  return markThreadAsReadRemote(threadId, reader);
 }
 
-export function deleteChatMessage(messageId: string) {
-  const data = readPlatformData();
-  data.messages = data.messages.filter((message) => message.id !== messageId);
-  writePlatformData(data);
+export async function deleteChatMessage(messageId: string): Promise<void> {
+  return deleteChatMessageRemote(messageId);
 }
 
-export function deleteChatThread(
+export async function deleteChatThread(
   threadId: string,
   user: { id: string; role: "customer" | "agency" },
-) {
-  const data = readPlatformData();
-  const threadIndex = data.threads.findIndex((thread) => thread.id === threadId);
-  if (threadIndex === -1) return;
-
-  const thread = data.threads[threadIndex];
-  if (user.role === "customer") {
-    data.threads[threadIndex] = { ...thread, deletedByCustomer: true };
-  } else {
-    data.threads[threadIndex] = { ...thread, deletedByAgency: true };
-  }
-
-  writePlatformData(data);
+): Promise<void> {
+  return deleteChatThreadRemote(threadId, user);
 }
 
-export function getUnreadCount(
+export async function getUnreadCount(
   userId: string,
   role: "customer" | "agency",
-): number {
-  const data = readPlatformData();
-  const threads =
-    role === "customer"
-      ? data.threads.filter(
-          (thread) => thread.customerId === userId && !thread.deletedByCustomer,
-        )
-      : data.threads.filter(
-          (thread) => thread.agencyId === userId && !thread.deletedByAgency,
-        );
-
-  return threads.reduce((count, thread) => {
-    const lastRead =
-      role === "customer" ? thread.customerLastReadAt : thread.agencyLastReadAt;
-    const lastReadTime = lastRead ? new Date(lastRead).getTime() : 0;
-    const hasUnread = data.messages.some((message) => {
-      const normalized = normalizeMessage(message);
-      if (normalized.threadId !== thread.id) return false;
-      if (normalized.senderRole === role) return false;
-      return new Date(normalized.sentAt).getTime() > lastReadTime;
-    });
-    return count + (hasUnread ? 1 : 0);
-  }, 0);
+): Promise<number> {
+  return getUnreadCountRemote(userId, role);
 }
 
 export function filterRequests(

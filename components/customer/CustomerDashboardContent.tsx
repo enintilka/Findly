@@ -14,10 +14,16 @@ export default function CustomerDashboardContent() {
 
   useEffect(() => {
     if (!customer) return;
-    const refresh = () => setRequests(getCustomerRequests(customer.id));
-    refresh();
+    const refresh = async () => {
+      setRequests(await getCustomerRequests(customer.id));
+    };
+    void refresh();
     window.addEventListener("findly-customer-change", refresh);
-    return () => window.removeEventListener("findly-customer-change", refresh);
+    window.addEventListener("findly-platform-change", refresh);
+    return () => {
+      window.removeEventListener("findly-customer-change", refresh);
+      window.removeEventListener("findly-platform-change", refresh);
+    };
   }, [customer]);
 
   return (

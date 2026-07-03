@@ -1,19 +1,22 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
+import RequestAttachmentUpload from "@/components/customer/RequestAttachmentUpload";
 import {
   FieldGroup,
   FormSection,
 } from "@/components/customer/FormSection";
-import { createCustomerRequest } from "@/lib/customer-store";
+import { createCustomerRequest, updateCustomerRequest } from "@/lib/customer-store";
 import {
   AMENITY_LABELS,
   EMPTY_AMENITIES,
   PROPERTY_TYPE_LABELS,
   type PropertyType,
   type RequestAmenities,
+  type RequestImage,
+  type CustomerRequest,
 } from "@/types/customer";
 import { Button, FormError, Input, Label, Select, Textarea } from "@/components/ui/primitives";
 import { validateRequiredFields } from "@/lib/validation";
@@ -46,30 +49,26 @@ function AmenityCheckbox({
   );
 }
 
-export default function CustomerRequestForm() {
+export default function CustomerRequestForm({
+  request,
+}: {
+  request?: CustomerRequest;
+}) {
   const router = useRouter();
   const { customer } = useCustomerAuth();
+  const isEdit = Boolean(request);
   const [error, setError] = useState("");
-  const [amenities, setAmenities] = useState<RequestAmenities>(EMPTY_AMENITIES);
-  const [imageNames, setImageNames] = useState<string[]>([]);
-  const [pdfNames, setPdfNames] = useState<string[]>([]);
+  const [amenities, setAmenities] = useState<RequestAmenities>(
+    request?.amenities ?? EMPTY_AMENITIES,
+  );
+  const [images, setImages] = useState<RequestImage[]>(request?.images ?? []);
+  const [pdfNames, setPdfNames] = useState<string[]>(request?.pdfNames ?? []);
 
   function handleAmenityChange(key: keyof RequestAmenities, value: boolean) {
     setAmenities((current) => ({ ...current, [key]: value }));
   }
 
-  function handleFileChange(
-    event: ChangeEvent<HTMLInputElement>,
-    type: "image" | "pdf",
-  ) {
-    const files = Array.from(event.target.files ?? []);
-    const names = files.map((file) => file.name);
-
-    if (type === "image") setImageNames(names);
-    else setPdfNames(names);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!customer) return;
     setError("");
@@ -83,12 +82,10 @@ export default function CustomerRequestForm() {
     const budgetMax = Number(form.get("budgetMax"));
 
     const requiredErrors = validateRequiredFields(
-      { introduction, country, region, city },
+      { introduction, country },
       {
         introduction: "Your message",
         country: "Country",
-        region: "Region",
-        city: "City",
       },
     );
 
@@ -107,34 +104,52 @@ export default function CustomerRequestForm() {
       return;
     }
 
-    createCustomerRequest(customer, {
-      introduction,
-      propertyType: String(form.get("propertyType")) as PropertyType,
-      country,
-      region,
-      city,
-      budgetMin,
-      budgetMax,
-      sizeMin: Number(form.get("sizeMin")) || undefined,
-      sizeMax: Number(form.get("sizeMax")) || undefined,
-      bedrooms: Number(form.get("bedrooms")) || undefined,
-      bathrooms: Number(form.get("bathrooms")) || undefined,
-      amenities,
-      additionalNotes: String(form.get("additionalNotes")) || undefined,
-      imageNames,
-      pdfNames,
-    });
+    try {
+      const payload = {
+        introduction,
+        propertyType: String(form.get("propertyType")) as PropertyType,
+        country,
+        region,
+        city,
+        budgetMin,
+        budgetMax,
+        sizeMin: Number(form.get("sizeMin")) || undefined,
+        sizeMax: Number(form.get("sizeMax")) || undefined,
+        bedrooms: Number(form.get("bedrooms")) || undefined,
+        bathrooms: Number(form.get("bathrooms")) || undefined,
+        amenities,
+        additionalNotes: String(form.get("additionalNotes")).trim() || undefined,
+        images,
+        pdfNames,
+      };
 
-    router.push("/customer/dashboard");
+      if (isEdit && request) {
+        await updateCustomerRequest(customer.id, request.id, payload, customer.name);
+        router.push(`/customer/requests/${request.id}`);
+      } else {
+        await createCustomerRequest(customer, payload);
+        router.push("/customer/dashboard");
+      }
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Could not save your request. Please try again.",
+      );
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6" key={request?.id ?? "new"}>
       {error ? <FormError message={error} /> : null}
 
       <FormSection
-        title="Introduce yourself"
-        description="Write naturally, like you're telling an agency what you're looking for."
+        title={isEdit ? "Your message" : "Introduce yourself"}
+        description={
+          isEdit
+            ? "Update your introduction if anything has changed."
+            : "Write naturally, like you're telling an agency what you're looking for."
+        }
       >
         <Label htmlFor="introduction" required>
           Your message
@@ -144,6 +159,7 @@ export default function CustomerRequestForm() {
           name="introduction"
           required
           rows={6}
+          defaultValue={request?.introduction ?? ""}
           placeholder={`Hi, I'm ${customer?.name ?? "..."}. I'm looking for a vacation house in Italy, preferably close to the sea. My budget is €130,000...`}
           className="mt-1.5"
         />
@@ -155,19 +171,31 @@ export default function CustomerRequestForm() {
             <Label htmlFor="country" required>
               Country
             </Label>
-            <Input id="country" name="country" required placeholder="Italy" />
+            <Input
+              id="country"
+              name="country"
+              required
+              defaultValue={request?.country ?? ""}
+              placeholder="Italy"
+            />
           </div>
           <div>
-            <Label htmlFor="region" required>
-              Region
-            </Label>
-            <Input id="region" name="region" required placeholder="Tuscany" />
+            <Label htmlFor="region">Region</Label>
+            <Input
+              id="region"
+              name="region"
+              defaultValue={request?.region ?? ""}
+              placeholder="Tuscany"
+            />
           </div>
           <div>
-            <Label htmlFor="city" required>
-              City
-            </Label>
-            <Input id="city" name="city" required placeholder="Lucca" />
+            <Label htmlFor="city">City</Label>
+            <Input
+              id="city"
+              name="city"
+              defaultValue={request?.city ?? ""}
+              placeholder="Lucca"
+            />
           </div>
         </FieldGroup>
       </FormSection>
@@ -178,7 +206,12 @@ export default function CustomerRequestForm() {
             <Label htmlFor="propertyType" required>
               Property type
             </Label>
-            <Select id="propertyType" name="propertyType" required defaultValue="vacation_home">
+            <Select
+              id="propertyType"
+              name="propertyType"
+              required
+              defaultValue={request?.propertyType ?? "vacation_home"}
+            >
               {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -191,29 +224,73 @@ export default function CustomerRequestForm() {
             <Label htmlFor="budgetMin" required>
               Budget min (€)
             </Label>
-            <Input id="budgetMin" name="budgetMin" type="number" required min={0} placeholder="100000" />
+            <Input
+              id="budgetMin"
+              name="budgetMin"
+              type="number"
+              required
+              min={0}
+              defaultValue={request?.budgetMin ?? ""}
+              placeholder="100000"
+            />
           </div>
           <div>
             <Label htmlFor="budgetMax" required>
               Budget max (€)
             </Label>
-            <Input id="budgetMax" name="budgetMax" type="number" required min={0} placeholder="130000" />
+            <Input
+              id="budgetMax"
+              name="budgetMax"
+              type="number"
+              required
+              min={0}
+              defaultValue={request?.budgetMax ?? ""}
+              placeholder="130000"
+            />
           </div>
           <div>
             <Label htmlFor="sizeMin">Size min (m²)</Label>
-            <Input id="sizeMin" name="sizeMin" type="number" min={0} placeholder="50" />
+            <Input
+              id="sizeMin"
+              name="sizeMin"
+              type="number"
+              min={0}
+              defaultValue={request?.sizeMin ?? ""}
+              placeholder="50"
+            />
           </div>
           <div>
             <Label htmlFor="sizeMax">Size max (m²)</Label>
-            <Input id="sizeMax" name="sizeMax" type="number" min={0} placeholder="60" />
+            <Input
+              id="sizeMax"
+              name="sizeMax"
+              type="number"
+              min={0}
+              defaultValue={request?.sizeMax ?? ""}
+              placeholder="60"
+            />
           </div>
           <div>
             <Label htmlFor="bedrooms">Bedrooms</Label>
-            <Input id="bedrooms" name="bedrooms" type="number" min={0} placeholder="2" />
+            <Input
+              id="bedrooms"
+              name="bedrooms"
+              type="number"
+              min={0}
+              defaultValue={request?.bedrooms ?? ""}
+              placeholder="2"
+            />
           </div>
           <div>
             <Label htmlFor="bathrooms">Bathrooms</Label>
-            <Input id="bathrooms" name="bathrooms" type="number" min={0} placeholder="1" />
+            <Input
+              id="bathrooms"
+              name="bathrooms"
+              type="number"
+              min={0}
+              defaultValue={request?.bathrooms ?? ""}
+              placeholder="1"
+            />
           </div>
         </FieldGroup>
       </FormSection>
@@ -243,6 +320,7 @@ export default function CustomerRequestForm() {
           id="additionalNotes"
           name="additionalNotes"
           rows={4}
+          defaultValue={request?.additionalNotes ?? ""}
           placeholder="Flexible on move-in date, prefer ground floor, etc."
           className="mt-1.5"
         />
@@ -250,54 +328,32 @@ export default function CustomerRequestForm() {
 
       <FormSection
         title="Attachments (optional)"
-        description="Upload reference images or PDFs. Files stay on your device for now — only names are saved in this demo."
+        description="Add reference photos and PDF documents to help agencies understand what you want."
       >
-        <FieldGroup columns={2}>
-          <div>
-            <Label htmlFor="images">Images</Label>
-            <Input
-              id="images"
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(event) => handleFileChange(event, "image")}
-              className="mt-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700"
-            />
-            {imageNames.length > 0 ? (
-              <p className="mt-2 text-xs text-slate-500">
-                {imageNames.length} file(s) selected
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <Label htmlFor="pdfs">PDF documents</Label>
-            <Input
-              id="pdfs"
-              type="file"
-              accept="application/pdf"
-              multiple
-              onChange={(event) => handleFileChange(event, "pdf")}
-              className="mt-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700"
-            />
-            {pdfNames.length > 0 ? (
-              <p className="mt-2 text-xs text-slate-500">
-                {pdfNames.length} file(s) selected
-              </p>
-            ) : null}
-          </div>
-        </FieldGroup>
+        <RequestAttachmentUpload
+          images={images}
+          pdfNames={pdfNames}
+          onImagesChange={setImages}
+          onPdfNamesChange={setPdfNames}
+        />
       </FormSection>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
         <Button
           type="button"
           variant="ghost"
-          onClick={() => router.push("/customer/dashboard")}
+          onClick={() =>
+            router.push(
+              isEdit && request
+                ? `/customer/requests/${request.id}`
+                : "/customer/dashboard",
+            )
+          }
         >
           Cancel
         </Button>
         <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-          Publish request
+          {isEdit ? "Save changes" : "Publish request"}
         </Button>
       </div>
     </form>

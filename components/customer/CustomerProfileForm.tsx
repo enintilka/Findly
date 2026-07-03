@@ -22,7 +22,7 @@ export default function CustomerProfileForm({
     customer?.profilePicture,
   );
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!customer) return;
     setError("");
@@ -42,7 +42,7 @@ export default function CustomerProfileForm({
       return;
     }
 
-    const updated = updateProfile({
+    const updated = await updateProfile({
       name,
       phone: String(form.get("phone")).trim() || undefined,
       country,

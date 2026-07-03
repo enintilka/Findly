@@ -6,6 +6,7 @@ import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import AgencyRequestBrowse from "@/components/agency/AgencyRequestBrowse";
 import ChatThreadList from "@/components/chat/ChatThreadList";
 import { getListingsForAgency } from "@/lib/agency-store";
+import { getListingImages } from "@/lib/listing-images";
 import type { AgencyListing } from "@/types/agency";
 
 function formatCurrency(value: number) {
@@ -22,8 +23,10 @@ export default function AgencyDashboardContent() {
 
   useEffect(() => {
     if (!agency) return;
-    const refresh = () => setListings(getListingsForAgency(agency.id));
-    refresh();
+    const refresh = async () => {
+      setListings(await getListingsForAgency(agency.id));
+    };
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency]);
@@ -108,20 +111,53 @@ export default function AgencyDashboardContent() {
             </div>
           ) : (
             <div className="mt-4 space-y-3">
-              {listings.map((listing) => (
-                <article
-                  key={listing.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4"
-                >
-                  <h3 className="font-medium text-slate-900">{listing.title}</h3>
-                  <p className="text-sm text-slate-500">
-                    {listing.city}, {listing.country}
-                  </p>
-                  <p className="mt-2 font-semibold text-violet-600">
-                    {formatCurrency(listing.price)}
-                  </p>
-                </article>
-              ))}
+              {listings.map((listing) => {
+                const cover = getListingImages(listing)[0];
+                return (
+                  <article
+                    key={listing.id}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="flex gap-4">
+                      {cover?.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={cover.url}
+                          alt=""
+                          className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-xs text-violet-400">
+                          No photo
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium text-slate-900">{listing.title}</h3>
+                        <p className="text-sm text-slate-500">
+                          {[listing.city, listing.country].filter(Boolean).join(", ")}
+                        </p>
+                        <p className="mt-1 font-semibold text-violet-600">
+                          {formatCurrency(listing.price)}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                          <Link
+                            href={`/agency/listings/${listing.id}`}
+                            className="font-medium text-violet-600 hover:text-violet-700"
+                          >
+                            View
+                          </Link>
+                          <Link
+                            href={`/agency/listings/${listing.id}/edit`}
+                            className="font-medium text-slate-600 hover:text-slate-900"
+                          >
+                            Edit
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import CustomerHeader from "@/components/customer/CustomerHeader";
+import RequestAttachments from "@/components/customer/RequestAttachments";
+import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
 import { RequireCustomer } from "@/components/customer/RequireCustomer";
 import { getCustomerRequestById } from "@/lib/customer-store";
 import {
@@ -22,14 +24,19 @@ function formatCurrency(value: number) {
 
 function RequestDetailContent() {
   const params = useParams<{ id: string }>();
+  const { customer } = useCustomerAuth();
   const [request, setRequest] = useState<CustomerRequest | null>(null);
 
   useEffect(() => {
-    const refresh = () =>
-      setRequest(getCustomerRequestById(params.id));
-    refresh();
+    const refresh = async () =>
+      setRequest(await getCustomerRequestById(params.id));
+    void refresh();
     window.addEventListener("findly-customer-change", refresh);
-    return () => window.removeEventListener("findly-customer-change", refresh);
+    window.addEventListener("findly-platform-change", refresh);
+    return () => {
+      window.removeEventListener("findly-customer-change", refresh);
+      window.removeEventListener("findly-platform-change", refresh);
+    };
   }, [params.id]);
 
   if (!request) {
@@ -44,16 +51,29 @@ function RequestDetailContent() {
     Object.keys(request.amenities) as Array<keyof typeof request.amenities>
   ).filter((key) => request.amenities[key]);
 
+  const canEdit =
+    customer?.id === request.customerId && request.status === "open";
+
   return (
     <article className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-            {PROPERTY_TYPE_LABELS[request.propertyType]}
-          </span>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium capitalize text-emerald-700">
-            {request.status}
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+              {PROPERTY_TYPE_LABELS[request.propertyType]}
+            </span>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium capitalize text-emerald-700">
+              {request.status}
+            </span>
+          </div>
+          {canEdit ? (
+            <Link
+              href={`/customer/requests/${request.id}/edit`}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              Edit request
+            </Link>
+          ) : null}
         </div>
 
         <h1 className="mt-4 text-2xl font-bold text-slate-900">
@@ -131,19 +151,7 @@ function RequestDetailContent() {
         </section>
       ) : null}
 
-      {(request.imageNames.length > 0 || request.pdfNames.length > 0) ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="font-semibold text-slate-900">Attachments</h2>
-          <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            {request.imageNames.map((name) => (
-              <li key={name}>Image: {name}</li>
-            ))}
-            {request.pdfNames.map((name) => (
-              <li key={name}>PDF: {name}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <RequestAttachments request={request} />
 
       <Link
         href="/customer/dashboard"

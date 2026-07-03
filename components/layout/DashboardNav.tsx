@@ -65,16 +65,16 @@ export default function DashboardNav({
       : "/";
 
   useEffect(() => {
-    function refresh() {
+    async function refresh() {
       if (isCustomer) {
-        setUnread(getUnreadCount(customer.id, "customer"));
+        setUnread(await getUnreadCount(customer.id, "customer"));
       } else if (isAgency) {
-        setUnread(getUnreadCount(agency.id, "agency"));
+        setUnread(await getUnreadCount(agency.id, "agency"));
       } else {
         setUnread(0);
       }
     }
-    refresh();
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [isCustomer, isAgency, customer, agency]);
@@ -85,10 +85,10 @@ export default function DashboardNav({
       ? "/agency/chat"
       : AUTH_ROUTES.chooseAccount;
 
-  function handleSignOut() {
-    if (isCustomer) logoutCustomer();
-    if (isAgency) logoutAgency();
-    router.push(AUTH_ROUTES.chooseAccount);
+  async function handleSignOut() {
+    if (isCustomer) await logoutCustomer();
+    if (isAgency) await logoutAgency();
+    router.push(AUTH_ROUTES.home);
   }
 
   return (

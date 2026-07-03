@@ -1,19 +1,46 @@
-export default function Home() {
+import Navbar from "@/components/marketing/Navbar";
+import Hero from "@/components/marketing/Hero";
+import HowItWorks from "@/components/marketing/HowItWorks";
+import WorkflowCards from "@/components/marketing/WorkflowCards";
+import Benefits from "@/components/marketing/Benefits";
+import CallToAction from "@/components/marketing/CallToAction";
+import Footer from "@/components/marketing/Footer";
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    error?: string;
+    error_code?: string;
+    error_description?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const authNotice =
+    params.error_code === "otp_expired"
+      ? "Your email confirmation link has expired. Sign up again or sign in if you already confirmed your account."
+      : params.error
+        ? decodeURIComponent(
+            (params.error_description ?? params.error).replace(/\+/g, " "),
+          )
+        : null;
+
   return (
-    <main className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold text-blue-600">
-          Findly
-        </h1>
-
-        <p className="mt-4 text-xl text-gray-600">
-          Find your next home with confidence.
-        </p>
-
-        <button className="mt-8 rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700">
-          Get Started
-        </button>
-      </div>
-    </main>
+    <>
+      <Navbar />
+      {authNotice ? (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-900">
+          {authNotice}
+        </div>
+      ) : null}
+      <main>
+        <Hero />
+        <HowItWorks />
+        <WorkflowCards />
+        <Benefits />
+        <CallToAction />
+      </main>
+      <Footer />
+    </>
   );
 }

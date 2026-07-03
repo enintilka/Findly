@@ -35,20 +35,22 @@ export default function AgencyRequestCard({
 
   useEffect(() => {
     if (!agency) return;
-    const refresh = () => setSaved(isRequestSaved(agency.id, request.id));
-    refresh();
+    const refresh = async () => {
+      setSaved(await isRequestSaved(agency.id, request.id));
+    };
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency, request.id]);
 
-  function handleSave() {
+  async function handleSave() {
     if (!agency) return;
-    setSaved(toggleSavedRequest(agency.id, request.id));
+    setSaved(await toggleSavedRequest(agency.id, request.id));
   }
 
-  function handleContact() {
+  async function handleContact() {
     if (!agency) return;
-    const thread = startChatWithCustomer(agency, request);
+    const thread = await startChatWithCustomer(agency, request);
     router.push(`/agency/chat/${thread.id}`);
   }
 

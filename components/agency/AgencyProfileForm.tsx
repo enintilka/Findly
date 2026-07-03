@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import { FieldGroup, FormSection } from "@/components/customer/FormSection";
@@ -20,7 +20,11 @@ export default function AgencyProfileForm({
   const [error, setError] = useState("");
   const [profilePicture, setProfilePicture] = useState(agency?.profilePicture);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    setProfilePicture(agency?.profilePicture);
+  }, [agency?.profilePicture]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!agency) return;
     setError("");
@@ -39,26 +43,37 @@ export default function AgencyProfileForm({
       return;
     }
 
-    const updated = updateProfile({
+    const result = await updateProfile({
       agencyName,
       description,
       website: String(form.get("website")).trim() || undefined,
       phone: String(form.get("phone")).trim() || undefined,
       officeAddress: String(form.get("officeAddress")).trim() || undefined,
       profilePicture,
-      logoName: profilePicture ? "uploaded" : undefined,
     });
 
-    if (!updated) {
+    if (!result) {
       setError("Could not save your profile. Please try again.");
+      return;
+    }
+
+    if ("error" in result) {
+      setError(result.error);
       return;
     }
 
     router.push("/agency/dashboard");
   }
 
+  if (!agency) return null;
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+    <form
+      key={`${agency.id}-${agency.agencyName ?? ""}-${agency.description ?? ""}`}
+      onSubmit={handleSubmit}
+      noValidate
+      className="space-y-6"
+    >
       {error ? <FormError message={error} /> : null}
 
       <FormSection

@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Textarea } from "@/components/ui/primitives";
+import ChatComposer from "@/components/chat/ChatComposer";
+import ChatMessageContent from "@/components/chat/ChatMessageContent";
+import { Button } from "@/components/ui/primitives";
 import {
   deleteChatMessage,
   deleteChatThread,
@@ -12,7 +14,7 @@ import {
   markThreadAsRead,
   sendChatMessage,
 } from "@/lib/agency-store";
-import type { ChatMessage, ChatThread } from "@/types/agency";
+import type { ChatAttachment, ChatMessage, ChatThread } from "@/types/agency";
 
 function formatTimestamp(value?: string) {
   if (!value) return null;
@@ -46,39 +48,43 @@ export default function ChatThreadView({
   const router = useRouter();
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    const refresh = () => {
+    const refresh = async () => {
       const threads =
         role === "customer"
-          ? getThreadsForCustomer(userId)
-          : getThreadsForAgency(userId);
+          ? await getThreadsForCustomer(userId)
+          : await getThreadsForAgency(userId);
       setThread(threads.find((entry) => entry.id === threadId) ?? null);
-      setMessages(getMessagesForThread(threadId));
+      setMessages(await getMessagesForThread(threadId));
     };
-    refresh();
-    markThreadAsRead(threadId, { id: userId, role });
+    void refresh();
+    void markThreadAsRead(threadId, { id: userId, role });
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [threadId, role, userId]);
 
-  function handleSend(event: FormEvent) {
-    event.preventDefault();
-    if (!draft.trim()) return;
-    sendChatMessage(threadId, { id: userId, name: userName, role }, draft.trim());
-    setDraft("");
+  async function handleSend(payload: {
+    body: string;
+    attachments: ChatAttachment[];
+  }) {
+    const sent = await sendChatMessage(
+      threadId,
+      { id: userId, name: userName, role },
+      payload,
+    );
+    return sent !== null;
   }
 
-  function handleDeleteThread() {
+  async function handleDeleteThread() {
     if (!confirm("Delete this entire conversation?")) return;
-    deleteChatThread(threadId, { id: userId, role });
+    await deleteChatThread(threadId, { id: userId, role });
     router.push(listPath);
   }
 
-  function handleDeleteMessage(messageId: string) {
+  async function handleDeleteMessage(messageId: string) {
     if (!confirm("Delete this message?")) return;
-    deleteChatMessage(messageId);
+    await deleteChatMessage(messageId);
   }
 
   const accent =
@@ -130,7 +136,11 @@ export default function ChatThreadView({
                 }`}
               >
                 <p className="mb-1 text-xs opacity-70">{message.senderName}</p>
-                <p>{message.body}</p>
+                <ChatMessageContent
+                  message={message}
+                  isMine={isMine}
+                  viewerRole={role}
+                />
                 <div
                   className={`mt-2 space-y-0.5 text-[11px] ${isMine ? "text-white/70" : "text-slate-500"}`}
                 >
@@ -167,20 +177,11 @@ export default function ChatThreadView({
         })}
       </div>
 
-      <form onSubmit={handleSend} className="border-t border-slate-200 px-6 py-4">
-        <div className="flex gap-3">
-          <Textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            rows={2}
-            placeholder="Write a message..."
-            className="flex-1"
-          />
-          <Button type="submit" className={`self-end ${accent}`}>
-            Send
-          </Button>
-        </div>
-      </form>
+      <ChatComposer
+        accentClassName={accent}
+        placeholder="Write a message..."
+        onSend={handleSend}
+      />
     </div>
   );
 }

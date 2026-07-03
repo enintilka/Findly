@@ -1,4 +1,5 @@
 export const AUTH_ROUTES = {
+  home: "/",
   chooseAccount: "/login",
   register: "/register",
   customerLogin: "/customer/login",

@@ -8,14 +8,23 @@ import {
   useMemo,
   useState,
 } from "react";
+import { completeAccountSignup } from "@/lib/auth/complete-signup";
+import { getAccountTypeFromUser } from "@/lib/auth/account-type";
+import { createClient } from "@/lib/supabase";
 import {
-  getCurrentCustomer,
-  loginCustomer as storeLogin,
-  logoutCustomer as storeLogout,
-  signupCustomer as storeSignup,
-  updateCustomerProfile as storeUpdateProfile,
-} from "@/lib/customer-store";
+  fetchProfile,
+  ensureCustomerProfile,
+  mapAuthError,
+  mapProfileUpdateError,
+  profileToCustomer,
+  updateProfileRow,
+} from "@/lib/auth/profile";
 import type { Customer } from "@/types/customer";
+
+type AuthResult =
+  | { ok: true; customer: Customer }
+  | { ok: true; emailConfirmationRequired: true }
+  | { ok: false; error: string; rateLimited?: boolean };
 
 interface CustomerAuthContextValue {
   customer: Customer | null;
@@ -24,14 +33,11 @@ interface CustomerAuthContextValue {
     name: string;
     email: string;
     password: string;
-  }) => ReturnType<typeof storeSignup>;
-  login: (
-    email: string,
-    password: string,
-  ) => ReturnType<typeof storeLogin>;
-  updateProfile: (updates: Partial<Customer>) => Customer | null;
-  logout: () => void;
-  refresh: () => void;
+  }) => Promise<AuthResult>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  updateProfile: (updates: Partial<Customer>) => Promise<Customer | null>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(
@@ -46,41 +52,169 @@ export function CustomerAuthProvider({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [ready, setReady] = useState(false);
 
-  const refresh = useCallback(() => {
-    setCustomer(getCurrentCustomer());
+  const loadCustomerFromSession = useCallback(async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setCustomer(null);
+      return;
+    }
+
+    if (getAccountTypeFromUser(user) === "agency") {
+      setCustomer(null);
+      return;
+    }
+
+    const profileResult = await fetchProfile(supabase, user.id);
+    if (!profileResult.ok || profileResult.profile.role !== "customer") {
+      setCustomer(null);
+      return;
+    }
+
+    setCustomer(profileToCustomer(profileResult.profile));
   }, []);
+
+  const refresh = useCallback(async () => {
+    await loadCustomerFromSession();
+  }, [loadCustomerFromSession]);
 
   useEffect(() => {
-    refresh();
-    setReady(true);
-    window.addEventListener("findly-customer-change", refresh);
-    return () => window.removeEventListener("findly-customer-change", refresh);
-  }, [refresh]);
+    const supabase = createClient();
+    let mounted = true;
 
-  const signup = useCallback((input: Parameters<typeof storeSignup>[0]) => {
-    const result = storeSignup(input);
-    if (result.ok) setCustomer(result.customer);
-    return result;
-  }, []);
+    async function init() {
+      await loadCustomerFromSession();
+      if (mounted) setReady(true);
+    }
 
-  const login = useCallback((email: string, password: string) => {
-    const result = storeLogin(email, password);
-    if (result.ok) setCustomer(result.customer);
-    return result;
-  }, []);
+    void init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadCustomerFromSession();
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadCustomerFromSession]);
+
+  const signup = useCallback(
+    async (input: {
+      name: string;
+      email: string;
+      password: string;
+    }): Promise<AuthResult> => {
+      const result = await completeAccountSignup({
+        email: input.email,
+        password: input.password,
+        fullName: input.name,
+        accountType: "customer",
+      });
+
+      if (!result.ok) {
+        return result;
+      }
+
+      if ("emailConfirmationRequired" in result) {
+        return { ok: true, emailConfirmationRequired: true };
+      }
+
+      const mapped = profileToCustomer(result.profile);
+      setCustomer(mapped);
+      return { ok: true, customer: mapped };
+    },
+    [],
+  );
+
+  const login = useCallback(
+    async (email: string, password: string): Promise<AuthResult> => {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { ok: false, error: mapAuthError(error.message) };
+      }
+
+      if (!data.user) {
+        return { ok: false, error: "Invalid email or password." };
+      }
+
+      const profileResult = await ensureCustomerProfile(supabase, data.user);
+      if (!profileResult.ok || profileResult.profile.role !== "customer") {
+        await supabase.auth.signOut();
+        return {
+          ok: false,
+          error: profileResult.ok
+            ? "Invalid email, password, or account type."
+            : mapAuthError(profileResult.error),
+        };
+      }
+
+      const mapped = profileToCustomer(profileResult.profile);
+      setCustomer(mapped);
+      return { ok: true, customer: mapped };
+    },
+    [],
+  );
 
   const updateProfile = useCallback(
-    (updates: Partial<Customer>) => {
+    async (updates: Partial<Customer>): Promise<Customer | null> => {
       if (!customer) return null;
-      const updated = storeUpdateProfile(customer.id, updates);
-      if (updated) setCustomer(updated);
-      return updated;
+
+      const supabase = createClient();
+      const rowUpdates: {
+        full_name?: string;
+        phone?: string | null;
+        avatar_url?: string | null;
+        country?: string | null;
+        city?: string | null;
+        bio?: string | null;
+      } = {};
+
+      if (updates.name !== undefined) {
+        rowUpdates.full_name = updates.name;
+      }
+      if (updates.phone !== undefined) {
+        rowUpdates.phone = updates.phone || null;
+      }
+      if (updates.profilePicture !== undefined) {
+        rowUpdates.avatar_url = updates.profilePicture || null;
+      }
+      if (updates.country !== undefined) {
+        rowUpdates.country = updates.country || null;
+      }
+      if (updates.city !== undefined) {
+        rowUpdates.city = updates.city || null;
+      }
+      if (updates.bio !== undefined) {
+        rowUpdates.bio = updates.bio || null;
+      }
+
+      const result = await updateProfileRow(supabase, customer.id, rowUpdates);
+      if (!result.ok) {
+        console.error(mapProfileUpdateError(result.error));
+        return null;
+      }
+
+      const mapped = profileToCustomer(result.profile);
+      setCustomer(mapped);
+      return mapped;
     },
     [customer],
   );
 
-  const logout = useCallback(() => {
-    storeLogout();
+  const logout = useCallback(async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     setCustomer(null);
   }, []);
 

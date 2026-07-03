@@ -14,6 +14,12 @@ export interface Agency {
   createdAt: string;
 }
 
+export interface ListingImage {
+  name: string;
+  url: string;
+  storagePath?: string;
+}
+
 export interface AgencyListing {
   id: string;
   agencyId: string;
@@ -23,6 +29,7 @@ export interface AgencyListing {
   city: string;
   country: string;
   price: number;
+  images: ListingImage[];
   createdAt: string;
 }
 
@@ -33,6 +40,17 @@ export interface SavedRequest {
 }
 
 export type MessageStatus = "sent" | "delivered" | "read";
+
+export type ChatAttachmentKind = "image" | "file";
+
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  kind: ChatAttachmentKind;
+  mimeType?: string;
+  url?: string;
+  storagePath?: string;
+}
 
 export interface ChatThread {
   id: string;
@@ -57,6 +75,7 @@ export interface ChatMessage {
   senderName: string;
   senderRole: "customer" | "agency";
   body: string;
+  attachments?: ChatAttachment[];
   sentAt: string;
   deliveredAt?: string;
   readAt?: string;

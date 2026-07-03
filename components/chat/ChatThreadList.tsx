@@ -30,23 +30,23 @@ export default function ChatThreadList({
   const [threads, setThreads] = useState<ChatThread[]>([]);
 
   useEffect(() => {
-    const refresh = () => {
+    const refresh = async () => {
       setThreads(
-        role === "customer"
+        await (role === "customer"
           ? getThreadsForCustomer(userId)
-          : getThreadsForAgency(userId),
+          : getThreadsForAgency(userId)),
       );
     };
-    refresh();
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [role, userId]);
 
-  function handleDelete(event: React.MouseEvent, threadId: string) {
+  async function handleDelete(event: React.MouseEvent, threadId: string) {
     event.preventDefault();
     event.stopPropagation();
     if (!confirm("Delete this conversation?")) return;
-    deleteChatThread(threadId, { id: userId, role });
+    await deleteChatThread(threadId, { id: userId, role });
   }
 
   if (threads.length === 0) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AgencyHeader from "@/components/agency/AgencyHeader";
+import RequestAttachments from "@/components/customer/RequestAttachments";
 import { RequireAgency } from "@/components/agency/RequireAgency";
 import { Button } from "@/components/ui/primitives";
 import {
@@ -34,11 +35,11 @@ function RequestDetail() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const refresh = () => {
-      setRequest(getCustomerRequestById(params.id));
-      if (agency) setSaved(isRequestSaved(agency.id, params.id));
+    const refresh = async () => {
+      setRequest(await getCustomerRequestById(params.id));
+      if (agency) setSaved(await isRequestSaved(agency.id, params.id));
     };
-    refresh();
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [params.id, agency]);
@@ -55,14 +56,14 @@ function RequestDetail() {
     Object.keys(request.amenities) as Array<keyof typeof request.amenities>
   ).filter((key) => request.amenities[key]);
 
-  function handleSave() {
+  async function handleSave() {
     if (!agency || !request) return;
-    setSaved(toggleSavedRequest(agency.id, request.id));
+    setSaved(await toggleSavedRequest(agency.id, request.id));
   }
 
-  function handleContact() {
+  async function handleContact() {
     if (!agency || !request) return;
-    const thread = startChatWithCustomer(agency, request);
+    const thread = await startChatWithCustomer(agency, request);
     router.push(`/agency/chat/${thread.id}`);
   }
 
@@ -142,6 +143,8 @@ function RequestDetail() {
           <p className="mt-3 text-sm text-slate-600">{request.additionalNotes}</p>
         </section>
       ) : null}
+
+      <RequestAttachments request={request} />
 
       <div className="flex flex-wrap gap-3">
         <Button

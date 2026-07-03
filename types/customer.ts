@@ -34,6 +34,12 @@ export interface RequestAmenities {
   renovationNeeded: boolean;
 }
 
+export interface RequestImage {
+  name: string;
+  url: string;
+  storagePath?: string;
+}
+
 export interface CustomerRequest {
   id: string;
   customerId: string;
@@ -51,8 +57,10 @@ export interface CustomerRequest {
   bathrooms?: number;
   amenities: RequestAmenities;
   additionalNotes?: string;
-  imageNames: string[];
+  images: RequestImage[];
   pdfNames: string[];
+  /** @deprecated use images */
+  imageNames?: string[];
   status: "open" | "closed";
   createdAt: string;
 }
@@ -98,3 +106,8 @@ export const EMPTY_AMENITIES: RequestAmenities = {
   newConstruction: false,
   renovationNeeded: false,
 };
+
+export function getRequestImages(request: CustomerRequest): RequestImage[] {
+  if (request.images?.length) return request.images;
+  return (request.imageNames ?? []).map((name) => ({ name, url: "" }));
+}

@@ -8,7 +8,7 @@ import {
   getAllOpenRequests,
   getSavedRequestsForAgency,
 } from "@/lib/agency-store";
-import { PROPERTY_TYPE_LABELS } from "@/types/customer";
+import { PROPERTY_TYPE_LABELS, type CustomerRequest } from "@/types/customer";
 import { EMPTY_REQUEST_FILTERS, type RequestFilters } from "@/types/agency";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 
@@ -18,17 +18,15 @@ export default function AgencyRequestBrowse() {
   const { agency } = useAgencyAuth();
   const [tab, setTab] = useState<Tab>("all");
   const [filters, setFilters] = useState<RequestFilters>(EMPTY_REQUEST_FILTERS);
-  const [allRequests, setAllRequests] = useState(getAllOpenRequests());
-  const [savedRequests, setSavedRequests] = useState(
-    agency ? getSavedRequestsForAgency(agency.id) : [],
-  );
+  const [allRequests, setAllRequests] = useState<CustomerRequest[]>([]);
+  const [savedRequests, setSavedRequests] = useState<CustomerRequest[]>([]);
 
   useEffect(() => {
-    const refresh = () => {
-      setAllRequests(getAllOpenRequests());
-      if (agency) setSavedRequests(getSavedRequestsForAgency(agency.id));
+    const refresh = async () => {
+      setAllRequests(await getAllOpenRequests());
+      if (agency) setSavedRequests(await getSavedRequestsForAgency(agency.id));
     };
-    refresh();
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency]);

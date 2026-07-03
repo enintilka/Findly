@@ -1,5 +1,13 @@
 import type { Customer, CustomerAppData, CustomerRequest } from "@/types/customer";
 import {
+  createRequest,
+  fetchCustomerRequestById,
+  fetchCustomerRequests,
+  updateRequest,
+} from "@/lib/supabase/requests";
+import { fetchCustomerListingById } from "@/lib/supabase/listings";
+import type { AgencyListing } from "@/types/agency";
+import {
   PLATFORM_DATA_KEY,
   readPlatformData,
   writePlatformData,
@@ -45,19 +53,16 @@ export function getCurrentCustomer(): Customer | null {
   return readData().customers.find((customer) => customer.id === id) ?? null;
 }
 
-export function getCustomerRequests(customerId: string): CustomerRequest[] {
-  return readData()
-    .requests.filter((request) => request.customerId === customerId)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+export async function getCustomerRequests(
+  customerId: string,
+): Promise<CustomerRequest[]> {
+  return fetchCustomerRequests(customerId);
 }
 
-export function getCustomerRequestById(
+export async function getCustomerRequestById(
   requestId: string,
-): CustomerRequest | null {
-  return readData().requests.find((request) => request.id === requestId) ?? null;
+): Promise<CustomerRequest | null> {
+  return fetchCustomerRequestById(requestId);
 }
 
 export function signupCustomer(input: {
@@ -131,26 +136,36 @@ export function updateCustomerProfile(
   return updated;
 }
 
-export function createCustomerRequest(
+export async function createCustomerRequest(
   customer: Customer,
   request: Omit<
     CustomerRequest,
     "id" | "customerId" | "customerName" | "status" | "createdAt"
   >,
-): CustomerRequest {
-  const data = readData();
-  const entry: CustomerRequest = {
-    ...request,
-    id: createId("request"),
-    customerId: customer.id,
-    customerName: customer.name,
-    status: "open",
-    createdAt: new Date().toISOString(),
-  };
+): Promise<CustomerRequest> {
+  return createRequest(customer, request);
+}
 
-  data.requests.unshift(entry);
-  writeData(data);
-  return entry;
+export async function updateCustomerRequest(
+  customerId: string,
+  requestId: string,
+  updates: Omit<
+    CustomerRequest,
+    "id" | "customerId" | "customerName" | "status" | "createdAt"
+  >,
+  customerName?: string,
+): Promise<CustomerRequest> {
+  return updateRequest(customerId, requestId, updates, customerName);
+}
+
+export async function getCustomerListingById(
+  listingId: string,
+): Promise<AgencyListing | null> {
+  const listing = await fetchCustomerListingById(listingId);
+  if (listing) return listing;
+
+  const local = readPlatformData().listings.find((entry) => entry.id === listingId);
+  return local ?? null;
 }
 
 export function logoutCustomer() {
