@@ -30,6 +30,10 @@ export default function CustomerLoginForm() {
       return;
     }
 
+    if (!("customer" in result)) {
+      return;
+    }
+
     router.push(
       result.customer.profileComplete
         ? AUTH_ROUTES.customerDashboard

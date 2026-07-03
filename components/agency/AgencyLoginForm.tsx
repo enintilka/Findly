@@ -27,6 +27,10 @@ export default function AgencyLoginForm() {
       return;
     }
 
+    if (!("agency" in result)) {
+      return;
+    }
+
     router.push(
       result.agency.profileComplete
         ? AUTH_ROUTES.agencyDashboard

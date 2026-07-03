@@ -9,12 +9,12 @@ export default function AgencyChatInbox() {
   const [threads, setThreads] = useState<ChatThread[]>([]);
 
   useEffect(() => {
-    const refresh = () => {
+    const refresh = async () => {
       const agencyId = localStorage.getItem("findly-agency-session");
       if (!agencyId) return;
-      setThreads(getThreadsForAgency(agencyId));
+      setThreads(await getThreadsForAgency(agencyId));
     };
-    refresh();
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, []);

@@ -18,24 +18,21 @@ export default function CustomerChatWindow({ threadId }: { threadId: string }) {
 
   useEffect(() => {
     if (!customer) return;
-    const refresh = () => {
-      setThread(
-        getThreadsForCustomer(customer.id).find(
-          (entry) => entry.id === threadId,
-        ) ?? null,
-      );
-      setMessages(getMessagesForThread(threadId));
+    const refresh = async () => {
+      const threads = await getThreadsForCustomer(customer.id);
+      setThread(threads.find((entry) => entry.id === threadId) ?? null);
+      setMessages(await getMessagesForThread(threadId));
     };
-    refresh();
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [customer, threadId]);
 
-  function handleSend(event: FormEvent) {
+  async function handleSend(event: FormEvent) {
     event.preventDefault();
     if (!customer || !draft.trim()) return;
 
-    sendChatMessage(
+    await sendChatMessage(
       threadId,
       { id: customer.id, name: customer.name, role: "customer" },
       draft.trim(),

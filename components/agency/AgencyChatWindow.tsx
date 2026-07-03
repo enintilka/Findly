@@ -18,23 +18,21 @@ export default function AgencyChatWindow({ threadId }: { threadId: string }) {
 
   useEffect(() => {
     if (!agency) return;
-    const refresh = () => {
-      setThread(
-        getThreadsForAgency(agency.id).find((entry) => entry.id === threadId) ??
-          null,
-      );
-      setMessages(getMessagesForThread(threadId));
+    const refresh = async () => {
+      const threads = await getThreadsForAgency(agency.id);
+      setThread(threads.find((entry) => entry.id === threadId) ?? null);
+      setMessages(await getMessagesForThread(threadId));
     };
-    refresh();
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency, threadId]);
 
-  function handleSend(event: FormEvent) {
+  async function handleSend(event: FormEvent) {
     event.preventDefault();
     if (!agency || !draft.trim()) return;
 
-    sendChatMessage(
+    await sendChatMessage(
       threadId,
       {
         id: agency.id,

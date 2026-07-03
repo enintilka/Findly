@@ -12,8 +12,9 @@ export default function CustomerChatInbox() {
 
   useEffect(() => {
     if (!customer) return;
-    const refresh = () => setThreads(getThreadsForCustomer(customer.id));
-    refresh();
+    const refresh = async () =>
+      setThreads(await getThreadsForCustomer(customer.id));
+    void refresh();
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [customer]);
