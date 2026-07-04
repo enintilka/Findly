@@ -4,21 +4,12 @@ import { getAccountTypeFromUser } from "@/lib/auth/account-type";
 import { fetchProfile, mapAuthError } from "@/lib/auth/profile";
 import { validatePasswordField } from "@/components/ui/PasswordField";
 import { AUTH_ROUTES } from "@/lib/auth-routes";
+import { getPasswordResetRedirectUrl } from "@/lib/site-url";
 import type { Database } from "@/types/database";
 
 const RESET_PASSWORD_PATH = "/auth/reset-password";
 
-function getSiteOrigin(): string {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-}
-
-export function getPasswordResetRedirectUrl(): string {
-  return `${getSiteOrigin()}${RESET_PASSWORD_PATH}`;
-}
+export { getPasswordResetRedirectUrl };
 
 function cleanResetPasswordUrl() {
   if (typeof window === "undefined") return;

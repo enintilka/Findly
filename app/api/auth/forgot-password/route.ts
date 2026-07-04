@@ -2,16 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient as createSupabaseJsClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAuthError } from "@/lib/auth/profile";
+import { getPasswordResetRedirectUrl } from "@/lib/site-url";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import { hasSupabaseServiceRoleKey } from "@/lib/supabase/service-role-env";
 import type { Database } from "@/types/database";
-
-function getSiteOrigin(request: Request): string {
-  const origin = request.headers.get("origin");
-  if (origin) return origin;
-
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-}
 
 function createMailClient() {
   return createSupabaseJsClient<Database, "public">(
@@ -47,8 +41,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const origin = getSiteOrigin(request);
-  const redirectTo = `${origin}/auth/reset-password`;
+  const redirectTo = getPasswordResetRedirectUrl(request);
+  const origin = redirectTo.replace(/\/auth\/reset-password$/, "");
 
   // Local dev only: generate a clickable link for testing without sending email.
   // Never combine generateLink + resetPasswordForEmail — Supabase counts both as

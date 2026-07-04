@@ -1,9 +1,39 @@
 # Supabase password reset email template
 
-For password reset links to work reliably in Next.js (including when opened from Gmail or another browser), update the **Reset password** email template in Supabase.
+Password reset links use your **Supabase Site URL**. If that is still `http://localhost:3000`, reset emails will send users to localhost even when they use the Vercel app.
 
-1. Open **Supabase Dashboard → Authentication → Email Templates → Reset password**
-2. Replace the reset link with:
+## 1. Set production Site URL (required)
+
+1. Open **Supabase Dashboard → Authentication → URL Configuration**
+2. Set **Site URL** to your live app, for example:
+   ```
+   https://findly.vercel.app
+   ```
+   (Use your exact Vercel URL or custom domain — **not** localhost.)
+3. Under **Redirect URLs**, add:
+   ```
+   https://YOUR-VERCEL-URL.vercel.app/auth/reset-password
+   https://YOUR-VERCEL-URL.vercel.app/auth/confirm
+   https://YOUR-VERCEL-URL.vercel.app/auth/callback
+   http://localhost:3000/auth/reset-password
+   http://localhost:3000/auth/confirm
+   http://localhost:3000/auth/callback
+   ```
+4. Save.
+
+## 2. Optional: set `NEXT_PUBLIC_SITE_URL` on Vercel
+
+In **Vercel → Project → Settings → Environment Variables**, add:
+
+```
+NEXT_PUBLIC_SITE_URL=https://YOUR-VERCEL-URL.vercel.app
+```
+
+This keeps auth redirects correct if you use a custom domain later.
+
+## 3. Email template
+
+Update **Authentication → Email Templates → Reset password**:
 
 ```html
 <h2>Reset your password</h2>
@@ -15,15 +45,8 @@ For password reset links to work reliably in Next.js (including when opened from
 </p>
 ```
 
-3. Save the template.
+Save the template.
 
-Also add these **Redirect URLs** under **Authentication → URL Configuration**:
+## 4. Request a new reset email
 
-```
-http://localhost:3000/auth/reset-password
-http://localhost:3000/auth/confirm
-https://YOUR-VERCEL-URL.vercel.app/auth/reset-password
-https://YOUR-VERCEL-URL.vercel.app/auth/confirm
-```
-
-After saving, request a **new** reset email. Old emails will not work.
+Old emails still contain the old localhost link. After steps 1–3, request a **new** reset email from the live Vercel site.
