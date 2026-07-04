@@ -13,6 +13,21 @@ function getSiteOrigin(request: Request): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }
 
+function createMailClient() {
+  return createSupabaseJsClient<Database, "public">(
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
+    {
+      auth: {
+        flowType: "implicit",
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    },
+  );
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -35,7 +50,10 @@ export async function POST(request: Request) {
   const origin = getSiteOrigin(request);
   const redirectTo = `${origin}/auth/reset-password`;
 
-  if (hasSupabaseServiceRoleKey()) {
+  // Local dev only: generate a clickable link for testing without sending email.
+  // Never combine generateLink + resetPasswordForEmail — Supabase counts both as
+  // separate reset requests and rate-limits the second within 60 seconds.
+  if (hasSupabaseServiceRoleKey() && process.env.NODE_ENV === "development") {
     const admin = createAdminClient();
     const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
@@ -52,50 +70,10 @@ export async function POST(request: Request) {
 
     const recoveryUrl = `${origin}/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery&next=${encodeURIComponent("/auth/reset-password")}`;
 
-    const mailClient = createSupabaseJsClient<Database, "public">(
-      getSupabaseUrl(),
-      getSupabaseAnonKey(),
-      {
-        auth: {
-          flowType: "implicit",
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-        },
-      },
-    );
-
-    const { error: sendError } = await mailClient.auth.resetPasswordForEmail(
-      email,
-      { redirectTo },
-    );
-
-    if (sendError) {
-      return NextResponse.json(
-        { ok: false, error: mapAuthError(sendError.message) },
-        { status: 400 },
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-      ...(process.env.NODE_ENV === "development" ? { recoveryUrl } : {}),
-    });
+    return NextResponse.json({ ok: true, recoveryUrl });
   }
 
-  const mailClient = createSupabaseJsClient<Database, "public">(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      auth: {
-        flowType: "implicit",
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    },
-  );
-
+  const mailClient = createMailClient();
   const { error } = await mailClient.auth.resetPasswordForEmail(email, {
     redirectTo,
   });

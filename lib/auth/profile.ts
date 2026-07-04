@@ -153,6 +153,13 @@ export function mapAuthError(message: string): string {
   if (normalized.includes("email not confirmed")) {
     return "Please confirm your email address, then sign in.";
   }
+  if (
+    normalized.includes("only request this after") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("over_email_send_rate_limit")
+  ) {
+    return "Too many reset requests. Please wait a minute and try again.";
+  }
   if (normalized.includes("row-level security") || normalized.includes("permission denied")) {
     return "We couldn't finish setting up your account. Please try again in a moment.";
   }
