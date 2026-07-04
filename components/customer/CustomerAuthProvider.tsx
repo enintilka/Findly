@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { completeAccountSignup } from "@/lib/auth/complete-signup";
-import { getAccountTypeFromUser } from "@/lib/auth/account-type";
 import { createClient } from "@/lib/supabase";
 import {
   fetchProfile,
@@ -63,18 +62,13 @@ export function CustomerAuthProvider({
       return;
     }
 
-    if (getAccountTypeFromUser(user) === "agency") {
-      setCustomer(null);
-      return;
-    }
-
     const profileResult = await fetchProfile(supabase, user.id);
-    if (!profileResult.ok || profileResult.profile.role !== "customer") {
-      setCustomer(null);
+    if (profileResult.ok && profileResult.profile.role === "customer") {
+      setCustomer(profileToCustomer(profileResult.profile));
       return;
     }
 
-    setCustomer(profileToCustomer(profileResult.profile));
+    setCustomer(null);
   }, []);
 
   const refresh = useCallback(async () => {

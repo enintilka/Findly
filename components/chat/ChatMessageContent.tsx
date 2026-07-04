@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { resolveChatAttachments } from "@/lib/chat-attachments";
 import { rewriteListingLinkForViewer } from "@/lib/listing-routes";
 import { splitTextWithLinks } from "@/lib/linkify";
@@ -15,30 +16,40 @@ function LinkifiedText({
   viewerRole: "customer" | "agency";
 }) {
   const segments = splitTextWithLinks(text);
+  const linkClassName = isMine
+    ? "font-medium underline decoration-white/70 underline-offset-2 hover:text-white"
+    : "font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700";
 
   return (
     <p className="whitespace-pre-wrap break-words">
-      {segments.map((segment, index) =>
-        segment.type === "link" ? (
+      {segments.map((segment, index) => {
+        if (segment.type !== "link") {
+          return <span key={`text-${index}`}>{segment.value}</span>;
+        }
+
+        const href = rewriteListingLinkForViewer(segment.href, viewerRole);
+        const isInternal = href.startsWith("/");
+
+        if (isInternal) {
+          return (
+            <Link key={`${href}-${index}`} href={href} className={linkClassName}>
+              {segment.value}
+            </Link>
+          );
+        }
+
+        return (
           <a
-            key={`${segment.href}-${index}`}
-            href={rewriteListingLinkForViewer(segment.href, viewerRole)}
-            target={segment.href.startsWith("/") ? undefined : "_blank"}
-            rel={
-              segment.href.startsWith("/") ? undefined : "noopener noreferrer"
-            }
-            className={
-              isMine
-                ? "font-medium underline decoration-white/70 underline-offset-2 hover:text-white"
-                : "font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700"
-            }
+            key={`${href}-${index}`}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClassName}
           >
             {segment.value}
           </a>
-        ) : (
-          <span key={`text-${index}`}>{segment.value}</span>
-        ),
-      )}
+        );
+      })}
     </p>
   );
 }

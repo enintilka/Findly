@@ -14,6 +14,7 @@ export default function AgencyLoginForm() {
   const { login } = useAgencyAuth();
   const [error, setError] = useState("");
   const checkEmail = searchParams.get("checkEmail") === "1";
+  const passwordReset = searchParams.get("reset") === "1";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,6 +47,11 @@ export default function AgencyLoginForm() {
           below.
         </div>
       ) : null}
+      {passwordReset ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Password updated. Sign in with your new password.
+        </div>
+      ) : null}
       {error ? <FormError message={error} /> : null}
 
       <div>
@@ -56,9 +62,17 @@ export default function AgencyLoginForm() {
       </div>
 
       <div>
-        <Label htmlFor="password" required>
-          Password
-        </Label>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="password" required>
+            Password
+          </Label>
+          <Link
+            href={AUTH_ROUTES.agencyForgotPassword}
+            className="text-xs font-medium text-violet-600 hover:text-violet-700"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <Input id="password" name="password" type="password" required />
       </div>
 

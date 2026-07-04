@@ -156,15 +156,6 @@ export function mapAuthError(message: string): string {
   if (normalized.includes("row-level security") || normalized.includes("permission denied")) {
     return "We couldn't finish setting up your account. Please try again in a moment.";
   }
-  if (
-    normalized.includes("429") ||
-    normalized.includes("rate limit") ||
-    normalized.includes("too many requests") ||
-    normalized.includes("email rate limit") ||
-    normalized.includes("over_email_send_rate_limit")
-  ) {
-    return "Too many attempts. Please wait a few minutes and try again. If you already have an account, use Sign in instead.";
-  }
 
   return message;
 }

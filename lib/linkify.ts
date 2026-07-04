@@ -9,7 +9,8 @@ function normalizeHref(value: string): string {
 }
 
 const URL_PATTERN = /\b(?:https?:\/\/|www\.)[^\s<]+/gi;
-const LISTING_PATH_PATTERN = /\/agency\/listings\/[^\s/?#]+/gi;
+const LISTING_PATH_PATTERN =
+  /\/(?:agency|customer)\/listings\/[^\s/?#]+/gi;
 
 export function splitTextWithLinks(text: string): TextSegment[] {
   const pattern = new RegExp(

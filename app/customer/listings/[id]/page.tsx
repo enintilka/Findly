@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import ListingPhotos from "@/components/agency/ListingPhotos";
+import { useParams, useRouter } from "next/navigation";
+import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
+import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
 import CustomerHeader from "@/components/customer/CustomerHeader";
-import { RequireCustomer } from "@/components/customer/RequireCustomer";
+import ListingPhotos from "@/components/agency/ListingPhotos";
+import { AUTH_ROUTES } from "@/lib/auth-routes";
 import { getCustomerListingById } from "@/lib/customer-store";
 import { getListingImages } from "@/lib/listing-images";
 import type { AgencyListing } from "@/types/agency";
@@ -117,15 +119,44 @@ function CustomerListingDetailContent() {
 }
 
 export default function CustomerListingDetailPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const { agency, ready: agencyReady } = useAgencyAuth();
+  const { customer, ready: customerReady } = useCustomerAuth();
+
+  useEffect(() => {
+    if (!agencyReady || !agency) return;
+    router.replace(`/agency/listings/${params.id}`);
+  }, [agencyReady, agency, params.id, router]);
+
+  useEffect(() => {
+    if (!agencyReady || !customerReady || agency || customer) return;
+    router.replace(AUTH_ROUTES.customerLogin);
+  }, [agencyReady, customerReady, agency, customer, router]);
+
+  if (!agencyReady || !customerReady) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
+        Loading...
+      </div>
+    );
+  }
+
+  if (agency || !customer) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <>
       <CustomerHeader title="Property details" />
       <main className="bg-slate-50 px-4 py-10 sm:px-6">
-        <RequireCustomer>
-          <div className="mx-auto max-w-4xl">
-            <CustomerListingDetailContent />
-          </div>
-        </RequireCustomer>
+        <div className="mx-auto max-w-4xl">
+          <CustomerListingDetailContent />
+        </div>
       </main>
     </>
   );

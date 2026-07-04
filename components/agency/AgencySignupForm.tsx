@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import { FormError } from "@/components/ui/primitives";
@@ -10,11 +10,6 @@ import PasswordField, {
   PasswordConfirmField,
   validatePasswordField,
 } from "@/components/ui/PasswordField";
-import {
-  formatAuthRateLimitWait,
-  getAuthRateLimitRemainingMs,
-  setAuthRateLimitCooldown,
-} from "@/lib/auth/rate-limit-cooldown";
 import { validateRequiredFields } from "@/lib/validation";
 import { AUTH_ROUTES } from "@/lib/auth-routes";
 
@@ -24,29 +19,10 @@ export default function AgencySignupForm() {
   const [error, setError] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [cooldownMs, setCooldownMs] = useState(0);
-
-  useEffect(() => {
-    function updateCooldown() {
-      setCooldownMs(getAuthRateLimitRemainingMs());
-    }
-
-    updateCooldown();
-    const timer = window.setInterval(updateCooldown, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
-
-    const remaining = getAuthRateLimitRemainingMs();
-    if (remaining > 0) {
-      setError(
-        `Too many attempts. Please wait ${formatAuthRateLimitWait(remaining)} before trying again.`,
-      );
-      return;
-    }
 
     setError("");
 
@@ -85,10 +61,6 @@ export default function AgencySignupForm() {
     try {
       const result = await signup({ contactName, email, password });
       if (!result.ok) {
-        if (result.rateLimited) {
-          setAuthRateLimitCooldown();
-          setCooldownMs(getAuthRateLimitRemainingMs());
-        }
         setError(result.error);
         return;
       }
@@ -132,14 +104,10 @@ export default function AgencySignupForm() {
 
       <Button
         type="submit"
-        disabled={submitting || cooldownMs > 0}
+        disabled={submitting}
         className="w-full bg-violet-600 hover:bg-violet-700"
       >
-        {submitting
-          ? "Creating account…"
-          : cooldownMs > 0
-            ? `Wait ${formatAuthRateLimitWait(cooldownMs)}`
-            : "Create agency account"}
+        {submitting ? "Creating account…" : "Create agency account"}
       </Button>
 
       <p className="text-center text-sm text-slate-600">

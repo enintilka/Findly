@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { completeAccountSignup } from "@/lib/auth/complete-signup";
-import { getAccountTypeFromUser } from "@/lib/auth/account-type";
 import { createClient } from "@/lib/supabase";
 import {
   fetchProfile,
@@ -63,18 +62,13 @@ export function AgencyAuthProvider({
       return;
     }
 
-    if (getAccountTypeFromUser(user) === "customer") {
-      setAgency(null);
-      return;
-    }
-
     const profileResult = await fetchProfile(supabase, user.id);
-    if (!profileResult.ok || profileResult.profile.role !== "agency") {
-      setAgency(null);
+    if (profileResult.ok && profileResult.profile.role === "agency") {
+      setAgency(profileToAgency(profileResult.profile));
       return;
     }
 
-    setAgency(profileToAgency(profileResult.profile));
+    setAgency(null);
   }, []);
 
   const refresh = useCallback(async () => {
