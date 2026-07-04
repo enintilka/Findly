@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient as createSupabaseJsClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAuthError } from "@/lib/auth/profile";
-import { getPasswordResetRedirectUrl } from "@/lib/site-url";
+import {
+  getPasswordResetConfirmUrl,
+  getPasswordResetRedirectUrl,
+} from "@/lib/site-url";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import { hasSupabaseServiceRoleKey } from "@/lib/supabase/service-role-env";
 import type { Database } from "@/types/database";
@@ -41,8 +44,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const redirectTo = getPasswordResetRedirectUrl(request);
-  const origin = redirectTo.replace(/\/auth\/reset-password$/, "");
+  let redirectTo: string;
+  try {
+    redirectTo = getPasswordResetRedirectUrl(request);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Password reset is misconfigured for production.",
+      },
+      { status: 500 },
+    );
+  }
 
   // Local dev only: generate a clickable link for testing without sending email.
   // Never combine generateLink + resetPasswordForEmail — Supabase counts both as
@@ -62,7 +78,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const recoveryUrl = `${origin}/auth/confirm?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery&next=${encodeURIComponent("/auth/reset-password")}`;
+    const recoveryUrl = getPasswordResetConfirmUrl(
+      data.properties.hashed_token,
+      request,
+    );
 
     return NextResponse.json({ ok: true, recoveryUrl });
   }
