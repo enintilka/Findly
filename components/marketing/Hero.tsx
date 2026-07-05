@@ -54,7 +54,7 @@ export default function Hero() {
 
             <blockquote className="space-y-4 text-slate-200">
               <p className="text-lg font-medium text-white">
-                &ldquo;Hi, I&apos;m Enea.&rdquo;
+                &ldquo;Hi, I&apos;m John Doe.&rdquo;
               </p>
               <p className="leading-relaxed text-slate-300">
                 I&apos;m looking for a vacation house in Italy, preferably close
