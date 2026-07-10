@@ -16,7 +16,12 @@ import {
   markThreadAsRead as markThreadAsReadRemote,
   sendChatMessage as sendChatMessageRemote,
   startChatWithCustomer as startChatWithCustomerRemote,
+  type StartChatResult,
 } from "@/lib/supabase/chat";
+export {
+  buildAgencyContactDraft,
+  storeChatDraft,
+} from "@/lib/chat-drafts";
 import {
   createListing,
   fetchAgencyListingById,
@@ -259,7 +264,7 @@ export async function updateAgencyListing(
 export async function startChatWithCustomer(
   agency: Agency,
   request: CustomerRequest,
-): Promise<ChatThread> {
+): Promise<StartChatResult> {
   return startChatWithCustomerRemote(agency, request);
 }
 

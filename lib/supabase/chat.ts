@@ -109,10 +109,15 @@ export async function fetchMessagesForThread(
   return (data ?? []).map((row) => rowToMessage(row as ChatMessageRow));
 }
 
+export type StartChatResult = {
+  thread: ChatThread;
+  isNew: boolean;
+};
+
 export async function startChatWithCustomer(
   agency: Agency,
   request: CustomerRequest,
-): Promise<ChatThread> {
+): Promise<StartChatResult> {
   const supabase = createClient();
   const { data: existing, error: existingError } = await supabase
     .from("chat_threads")
@@ -122,9 +127,13 @@ export async function startChatWithCustomer(
     .maybeSingle();
 
   if (existingError) throw new Error(existingError.message);
-  if (existing) return rowToThread(existing as ChatThreadRow);
+  if (existing) {
+    return { thread: rowToThread(existing as ChatThreadRow), isNew: false };
+  }
 
-  const requestTitle = [request.city, request.region].filter(Boolean).join(", ") || request.country;
+  const requestTitle =
+    [request.city, request.region].filter(Boolean).join(", ") ||
+    request.country;
   const now = new Date().toISOString();
   const threadId = crypto.randomUUID();
 
@@ -145,26 +154,8 @@ export async function startChatWithCustomer(
 
   if (threadError) throw new Error(threadError.message);
 
-  const introBody = `Hello ${request.customerName}, we reviewed your request for ${requestTitle} and may have a suitable property. Would you be open to an online or in-person meeting this week?`;
-
-  await supabase.from("chat_messages").insert({
-    thread_id: threadId,
-    sender_id: agency.id,
-    sender_name: agency.agencyName ?? agency.contactName,
-    sender_role: "agency",
-    body: introBody,
-    sent_at: now,
-    delivered_at: now,
-    status: "delivered",
-  });
-
-  await supabase
-    .from("chat_threads")
-    .update({ last_message: introBody, updated_at: now })
-    .eq("id", threadId);
-
   notifyPlatformChange();
-  return rowToThread({ ...(thread as ChatThreadRow), last_message: introBody });
+  return { thread: rowToThread(thread as ChatThreadRow), isNew: true };
 }
 
 export async function sendChatMessage(

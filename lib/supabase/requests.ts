@@ -173,6 +173,41 @@ export async function updateRequest(
   return rowToRequest(data as RequestRow);
 }
 
+export async function deleteRequest(
+  customerId: string,
+  requestId: string,
+): Promise<void> {
+  const supabase = createClient();
+  const request = await fetchCustomerRequestById(requestId);
+
+  if (!request || request.customerId !== customerId) {
+    throw new Error("Request not found.");
+  }
+
+  const imagePaths = (request.images ?? [])
+    .map((image) => image.storagePath)
+    .filter((path): path is string => Boolean(path));
+
+  if (imagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from(BUCKET)
+      .remove(imagePaths);
+
+    if (storageError) {
+      throw new Error(storageError.message);
+    }
+  }
+
+  const { error } = await supabase
+    .from("requests")
+    .delete()
+    .eq("id", requestId)
+    .eq("customer_id", customerId);
+
+  if (error) throw new Error(error.message);
+  notifyPlatformChange();
+}
+
 export async function fetchSavedRequestsForAgency(
   agencyId: string,
 ): Promise<CustomerRequest[]> {

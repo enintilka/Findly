@@ -14,6 +14,7 @@ import {
   markThreadAsRead,
   sendChatMessage,
 } from "@/lib/agency-store";
+import { consumeChatDraft } from "@/lib/chat-drafts";
 import type { ChatAttachment, ChatMessage, ChatThread } from "@/types/agency";
 
 function formatTimestamp(value?: string) {
@@ -48,6 +49,7 @@ export default function ChatThreadView({
   const router = useRouter();
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [composerDraft, setComposerDraft] = useState<string | undefined>();
 
   useEffect(() => {
     const refresh = async () => {
@@ -56,7 +58,13 @@ export default function ChatThreadView({
           ? await getThreadsForCustomer(userId)
           : await getThreadsForAgency(userId);
       setThread(threads.find((entry) => entry.id === threadId) ?? null);
-      setMessages(await getMessagesForThread(threadId));
+      const nextMessages = await getMessagesForThread(threadId);
+      setMessages(nextMessages);
+
+      if (role === "agency" && nextMessages.length === 0) {
+        const draft = consumeChatDraft(threadId);
+        if (draft) setComposerDraft(draft);
+      }
     };
     void refresh();
     void markThreadAsRead(threadId, { id: userId, role });
@@ -180,6 +188,7 @@ export default function ChatThreadView({
       <ChatComposer
         accentClassName={accent}
         placeholder="Write a message..."
+        initialDraft={composerDraft}
         onSend={handleSend}
       />
     </div>

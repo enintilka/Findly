@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { Button, Textarea } from "@/components/ui/primitives";
 import { readFileAsDataUrl } from "@/lib/validation";
 import type { ChatAttachment } from "@/types/agency";
@@ -15,6 +15,7 @@ function createAttachmentId() {
 interface ChatComposerProps {
   accentClassName: string;
   placeholder?: string;
+  initialDraft?: string;
   onSend: (payload: {
     body: string;
     attachments: ChatAttachment[];
@@ -24,12 +25,18 @@ interface ChatComposerProps {
 export default function ChatComposer({
   accentClassName,
   placeholder = "Write a message...",
+  initialDraft,
   onSend,
 }: ChatComposerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState("");
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!initialDraft) return;
+    setDraft((current) => (current ? current : initialDraft));
+  }, [initialDraft]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     setError("");

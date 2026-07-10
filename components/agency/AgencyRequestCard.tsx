@@ -6,8 +6,10 @@ import { useEffect, useState } from "react";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import { Button } from "@/components/ui/primitives";
 import {
+  buildAgencyContactDraft,
   isRequestSaved,
   startChatWithCustomer,
+  storeChatDraft,
   toggleSavedRequest,
 } from "@/lib/agency-store";
 import {
@@ -50,7 +52,10 @@ export default function AgencyRequestCard({
 
   async function handleContact() {
     if (!agency) return;
-    const thread = await startChatWithCustomer(agency, request);
+    const { thread, isNew } = await startChatWithCustomer(agency, request);
+    if (isNew) {
+      storeChatDraft(thread.id, buildAgencyContactDraft(request));
+    }
     router.push(`/agency/chat/${thread.id}`);
   }
 

@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import CustomerHeader from "@/components/customer/CustomerHeader";
 import RequestAttachments from "@/components/customer/RequestAttachments";
+import { Button } from "@/components/ui/primitives";
 import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
 import { RequireCustomer } from "@/components/customer/RequireCustomer";
-import { getCustomerRequestById } from "@/lib/customer-store";
+import {
+  deleteCustomerRequest,
+  getCustomerRequestById,
+} from "@/lib/customer-store";
 import {
   AMENITY_LABELS,
   PROPERTY_TYPE_LABELS,
@@ -24,8 +28,11 @@ function formatCurrency(value: number) {
 
 function RequestDetailContent() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { customer } = useCustomerAuth();
   const [request, setRequest] = useState<CustomerRequest | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const refresh = async () =>
@@ -53,6 +60,31 @@ function RequestDetailContent() {
 
   const canEdit =
     customer?.id === request.customerId && request.status === "open";
+  const canDelete = customer?.id === request.customerId;
+
+  async function handleDelete() {
+    if (!customer || !canDelete || deleting) return;
+
+    const confirmed = confirm(
+      "Delete this request permanently? Agencies will no longer see it and related chats will be removed.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      await deleteCustomerRequest(customer.id, request.id);
+      router.push("/customer/dashboard");
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not delete this request.",
+      );
+      setDeleting(false);
+    }
+  }
 
   return (
     <article className="space-y-6">
@@ -75,6 +107,8 @@ function RequestDetailContent() {
             </Link>
           ) : null}
         </div>
+
+        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
         <h1 className="mt-4 text-2xl font-bold text-slate-900">
           {request.city}, {request.region}
@@ -153,12 +187,25 @@ function RequestDetailContent() {
 
       <RequestAttachments request={request} />
 
-      <Link
-        href="/customer/dashboard"
-        className="inline-block text-sm font-medium text-indigo-600 hover:text-indigo-700"
-      >
-        ← Back to dashboard
-      </Link>
+      <div className="flex flex-wrap items-center gap-4">
+        <Link
+          href="/customer/dashboard"
+          className="inline-block text-sm font-medium text-indigo-600 hover:text-indigo-700"
+        >
+          ← Back to dashboard
+        </Link>
+        {canDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            {deleting ? "Deleting..." : "Delete request"}
+          </Button>
+        ) : null}
+      </div>
     </article>
   );
 }

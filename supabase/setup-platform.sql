@@ -4,7 +4,7 @@
 -- Helper: check role from profiles (safe for RLS)
 CREATE OR REPLACE FUNCTION public.current_user_role()
 RETURNS text
-LANGUAGE sql
+LANGUAGE s ql
 STABLE
 SECURITY DEFINER
 SET search_path = public
@@ -45,6 +45,7 @@ ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Customers insert own requests" ON public.requests;
 DROP POLICY IF EXISTS "Customers select own requests" ON public.requests;
 DROP POLICY IF EXISTS "Customers update own requests" ON public.requests;
+DROP POLICY IF EXISTS "Customers delete own requests" ON public.requests;
 DROP POLICY IF EXISTS "Agencies view open requests" ON public.requests;
 
 CREATE POLICY "Customers insert own requests"
@@ -63,6 +64,13 @@ ON public.requests FOR UPDATE TO authenticated
 USING (customer_id = auth.uid())
 WITH CHECK (customer_id = auth.uid());
 
+CREATE POLICY "Customers delete own requests"
+ON public.requests FOR DELETE TO authenticated
+USING (
+  customer_id = auth.uid()
+  AND public.current_user_role() = 'customer'
+);
+
 CREATE POLICY "Agencies view open requests"
 ON public.requests FOR SELECT TO authenticated
 USING (
@@ -70,7 +78,7 @@ USING (
   AND public.current_user_role() = 'agency'
 );
 
-GRANT SELECT, INSERT, UPDATE ON public.requests TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.requests TO authenticated;
 
 -- ─── SAVED REQUESTS ─────────────────────────────────────────────────────────
 
@@ -230,6 +238,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Authenticated upload request images" ON storage.objects;
+DROP POLICY IF EXISTS "Customers delete own request images" ON storage.objects;
 DROP POLICY IF EXISTS "Public read request images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated upload listing images" ON storage.objects;
 DROP POLICY IF EXISTS "Public read listing images" ON storage.objects;
@@ -239,6 +248,13 @@ DROP POLICY IF EXISTS "Public read chat attachments" ON storage.objects;
 CREATE POLICY "Authenticated upload request images"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (bucket_id = 'request-images');
+
+CREATE POLICY "Customers delete own request images"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'request-images'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
 
 CREATE POLICY "Public read request images"
 ON storage.objects FOR SELECT TO public

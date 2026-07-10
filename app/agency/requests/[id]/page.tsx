@@ -7,9 +7,11 @@ import RequestAttachments from "@/components/customer/RequestAttachments";
 import { RequireAgency } from "@/components/agency/RequireAgency";
 import { Button } from "@/components/ui/primitives";
 import {
+  buildAgencyContactDraft,
   getCustomerRequestById,
   isRequestSaved,
   startChatWithCustomer,
+  storeChatDraft,
   toggleSavedRequest,
 } from "@/lib/agency-store";
 import {
@@ -63,7 +65,10 @@ function RequestDetail() {
 
   async function handleContact() {
     if (!agency || !request) return;
-    const thread = await startChatWithCustomer(agency, request);
+    const { thread, isNew } = await startChatWithCustomer(agency, request);
+    if (isNew) {
+      storeChatDraft(thread.id, buildAgencyContactDraft(request));
+    }
     router.push(`/agency/chat/${thread.id}`);
   }
 

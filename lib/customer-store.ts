@@ -1,6 +1,7 @@
 import type { Customer, CustomerAppData, CustomerRequest } from "@/types/customer";
 import {
   createRequest,
+  deleteRequest,
   fetchCustomerRequestById,
   fetchCustomerRequests,
   updateRequest,
@@ -156,6 +157,13 @@ export async function updateCustomerRequest(
   customerName?: string,
 ): Promise<CustomerRequest> {
   return updateRequest(customerId, requestId, updates, customerName);
+}
+
+export async function deleteCustomerRequest(
+  customerId: string,
+  requestId: string,
+): Promise<void> {
+  return deleteRequest(customerId, requestId);
 }
 
 export async function getCustomerListingById(
