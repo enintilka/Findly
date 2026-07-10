@@ -363,38 +363,41 @@ export default function CustomerRequestForm({
         />
       </FormSection>
 
-      <div className="flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
-        {isEdit && request ? (
+      {isEdit && request ? (
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-5">
+          <h2 className="text-sm font-semibold text-red-900">Delete this request</h2>
+          <p className="mt-1 text-sm text-red-800">
+            Permanently remove this request. Agencies will no longer see it.
+          </p>
           <Button
             type="button"
-            variant="ghost"
+            variant="danger"
             onClick={handleDelete}
             disabled={deleting}
-            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            className="mt-4"
           >
             {deleting ? "Deleting..." : "Delete request"}
           </Button>
-        ) : (
-          <span />
-        )}
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() =>
-              router.push(
-                isEdit && request
-                  ? `/customer/requests/${request.id}`
-                  : "/customer/dashboard",
-              )
-            }
-          >
-            Cancel
-          </Button>
-          <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-            {isEdit ? "Save changes" : "Publish request"}
-          </Button>
-        </div>
+        </section>
+      ) : null}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() =>
+            router.push(
+              isEdit && request
+                ? `/customer/requests/${request.id}`
+                : "/customer/dashboard",
+            )
+          }
+        >
+          Cancel
+        </Button>
+        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+          {isEdit ? "Save changes" : "Publish request"}
+        </Button>
       </div>
     </form>
   );

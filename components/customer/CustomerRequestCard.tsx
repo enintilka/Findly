@@ -140,7 +140,7 @@ export default function CustomerRequestCard({
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
           >
             {deleting ? "Deleting..." : "Delete"}
           </button>

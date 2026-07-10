@@ -63,7 +63,7 @@ function RequestDetailContent() {
   const canDelete = customer?.id === request.customerId;
 
   async function handleDelete() {
-    if (!customer || !canDelete || deleting) return;
+    if (!customer || !request || !canDelete || deleting) return;
 
     const confirmed = confirm(
       "Delete this request permanently? Agencies will no longer see it and related chats will be removed.",
@@ -197,10 +197,9 @@ function RequestDetailContent() {
         {canDelete ? (
           <Button
             type="button"
-            variant="ghost"
+            variant="danger"
             onClick={handleDelete}
             disabled={deleting}
-            className="text-red-600 hover:bg-red-50 hover:text-red-700"
           >
             {deleting ? "Deleting..." : "Delete request"}
           </Button>
