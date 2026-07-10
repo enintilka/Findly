@@ -87,7 +87,10 @@ export default function CustomerRequestCard({
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4">
+      <div
+        className="mt-5 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4"
+        data-request-actions
+      >
         <Link
           href={`/customer/requests/${request.id}`}
           className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
