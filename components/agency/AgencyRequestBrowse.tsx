@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AgencyRequestCard from "@/components/agency/AgencyRequestCard";
 import { Input, Label, Select, Button } from "@/components/ui/primitives";
 import {
@@ -19,6 +19,7 @@ const REQUESTS_PER_PAGE = 5;
 
 export default function AgencyRequestBrowse() {
   const { agency } = useAgencyAuth();
+  const sectionRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("all");
   const [sortOrder, setSortOrder] = useState<RequestSortOrder>("newest");
   const [currentPage, setCurrentPage] = useState(1);
@@ -81,6 +82,11 @@ export default function AgencyRequestBrowse() {
     value: RequestFilters[Key],
   ) {
     setFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  function goToPage(page: number) {
+    setCurrentPage(page);
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -209,7 +215,7 @@ export default function AgencyRequestBrowse() {
           </p>
         </div>
       ) : (
-        <div className="space-y-4" data-request-pagination>
+        <div className="space-y-4 scroll-mt-6" data-request-pagination ref={sectionRef}>
           <div className="grid gap-4 lg:grid-cols-2">
             {paginatedRequests.map((request) => (
               <AgencyRequestCard key={request.id} request={request} />
@@ -238,7 +244,7 @@ export default function AgencyRequestBrowse() {
                     type="button"
                     variant="secondary"
                     disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((page) => page - 1)}
+                    onClick={() => goToPage(currentPage - 1)}
                   >
                     Previous
                   </Button>
@@ -248,7 +254,7 @@ export default function AgencyRequestBrowse() {
                         key={page}
                         type="button"
                         variant={page === currentPage ? "violet" : "secondary"}
-                        onClick={() => setCurrentPage(page)}
+                        onClick={() => goToPage(page)}
                         aria-current={page === currentPage ? "page" : undefined}
                       >
                         {page}
@@ -259,7 +265,7 @@ export default function AgencyRequestBrowse() {
                     type="button"
                     variant="secondary"
                     disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((page) => page + 1)}
+                    onClick={() => goToPage(currentPage + 1)}
                   >
                     Next
                   </Button>

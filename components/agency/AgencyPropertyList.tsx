@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import { Button } from "@/components/ui/primitives";
 import { getListingsPageForAgency } from "@/lib/agency-store";
@@ -20,6 +20,8 @@ function formatCurrency(value: number) {
 
 export default function AgencyPropertyList() {
   const { agency } = useAgencyAuth();
+  const sectionRef = useRef<HTMLElement>(null);
+  const scrollAfterPageChange = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [listings, setListings] = useState<AgencyListing[]>([]);
   const [total, setTotal] = useState(0);
@@ -61,6 +63,18 @@ export default function AgencyPropertyList() {
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency, loadPage]);
 
+  function goToPage(page: number) {
+    scrollAfterPageChange.current = true;
+    setCurrentPage(page);
+  }
+
+  useEffect(() => {
+    if (!loading && scrollAfterPageChange.current) {
+      scrollAfterPageChange.current = false;
+      sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading, currentPage]);
+
   const totalPages = Math.max(1, Math.ceil(total / PROPERTIES_PER_PAGE));
   const showingFrom =
     total === 0 ? 0 : (currentPage - 1) * PROPERTIES_PER_PAGE + 1;
@@ -68,7 +82,7 @@ export default function AgencyPropertyList() {
   const hasMultiplePages = total > PROPERTIES_PER_PAGE;
 
   return (
-    <section>
+    <section ref={sectionRef} className="scroll-mt-6">
       <div>
         <h2 className="text-xl font-semibold text-slate-900">Your properties</h2>
         {total > 0 ? (
@@ -170,7 +184,7 @@ export default function AgencyPropertyList() {
                     type="button"
                     variant="secondary"
                     disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((page) => page - 1)}
+                    onClick={() => goToPage(currentPage - 1)}
                   >
                     Previous
                   </Button>
@@ -180,7 +194,7 @@ export default function AgencyPropertyList() {
                         key={page}
                         type="button"
                         variant={page === currentPage ? "violet" : "secondary"}
-                        onClick={() => setCurrentPage(page)}
+                        onClick={() => goToPage(page)}
                         aria-current={page === currentPage ? "page" : undefined}
                       >
                         {page}
@@ -191,7 +205,7 @@ export default function AgencyPropertyList() {
                     type="button"
                     variant="secondary"
                     disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((page) => page + 1)}
+                    onClick={() => goToPage(currentPage + 1)}
                   >
                     Next
                   </Button>
