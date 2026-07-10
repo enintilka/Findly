@@ -1,29 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
+import AgencyPropertyList from "@/components/agency/AgencyPropertyList";
 import AgencyRequestBrowse from "@/components/agency/AgencyRequestBrowse";
 import ChatThreadList from "@/components/chat/ChatThreadList";
-import { Button } from "@/components/ui/primitives";
 import { getListingsForAgency } from "@/lib/agency-store";
-import { getListingImages } from "@/lib/listing-images";
 import type { AgencyListing } from "@/types/agency";
-
-const LISTINGS_PER_PAGE = 5;
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-EU", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 export default function AgencyDashboardContent() {
   const { agency } = useAgencyAuth();
   const [listings, setListings] = useState<AgencyListing[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!agency) return;
@@ -34,42 +22,6 @@ export default function AgencyDashboardContent() {
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency]);
-
-  const sortedListings = useMemo(() => {
-    return [...listings].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-  }, [listings]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(sortedListings.length / LISTINGS_PER_PAGE),
-  );
-
-  const paginatedListings = useMemo(() => {
-    const start = (currentPage - 1) * LISTINGS_PER_PAGE;
-    return sortedListings.slice(start, start + LISTINGS_PER_PAGE);
-  }, [sortedListings, currentPage]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [listings.length]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  const showingFrom =
-    sortedListings.length === 0
-      ? 0
-      : (currentPage - 1) * LISTINGS_PER_PAGE + 1;
-  const showingTo = Math.min(
-    currentPage * LISTINGS_PER_PAGE,
-    sortedListings.length,
-  );
 
   return (
     <div className="space-y-10">
@@ -140,113 +92,12 @@ export default function AgencyDashboardContent() {
             </h2>
             {listings.length > 0 ? (
               <p className="mt-1 text-sm text-slate-500">
-                {listings.length} total
+                {listings.length} total · 5 per page
               </p>
             ) : null}
           </div>
 
-          {listings.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-              <p className="text-sm text-slate-600">
-                No listings yet. Add properties your agency represents.
-              </p>
-              <Link
-                href="/agency/listings/new"
-                className="mt-3 inline-block text-sm font-medium text-violet-600"
-              >
-                Add a property
-              </Link>
-            </div>
-          ) : (
-            <>
-              <div className="mt-4 space-y-3">
-                {paginatedListings.map((listing) => {
-                  const cover = getListingImages(listing)[0];
-                  return (
-                    <article
-                      key={listing.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4"
-                    >
-                      <div className="flex gap-4">
-                        {cover?.url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={cover.url}
-                            alt=""
-                            className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-xs text-violet-400">
-                            No photo
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-medium text-slate-900">
-                            {listing.title}
-                          </h3>
-                          <p className="text-sm text-slate-500">
-                            {[listing.city, listing.country]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </p>
-                          <p className="mt-1 font-semibold text-violet-600">
-                            {formatCurrency(listing.price)}
-                          </p>
-                          <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                            <Link
-                              href={`/agency/listings/${listing.id}`}
-                              className="font-medium text-violet-600 hover:text-violet-700"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              href={`/agency/listings/${listing.id}/edit`}
-                              className="font-medium text-slate-600 hover:text-slate-900"
-                            >
-                              Edit
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                <p className="text-sm text-slate-500">
-                  {sortedListings.length > LISTINGS_PER_PAGE
-                    ? `Showing ${showingFrom}–${showingTo} of ${sortedListings.length}`
-                    : `${sortedListings.length} propert${sortedListings.length === 1 ? "y" : "ies"}`}
-                  {totalPages > 1 ? ` · Page ${currentPage} of ${totalPages}` : ""}
-                </p>
-                {totalPages > 1 ? (
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={currentPage <= 1}
-                      onClick={() =>
-                        setCurrentPage((page) => Math.max(1, page - 1))
-                      }
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={currentPage >= totalPages}
-                      onClick={() =>
-                        setCurrentPage((page) => Math.min(totalPages, page + 1))
-                      }
-                    >
-                      Next page
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          )}
+          <AgencyPropertyList listings={listings} />
         </section>
 
         <section>
