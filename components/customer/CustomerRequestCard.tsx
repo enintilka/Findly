@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
-import { deleteCustomerRequest } from "@/lib/customer-store";
 import {
   AMENITY_LABELS,
   PROPERTY_TYPE_LABELS,
@@ -24,41 +21,13 @@ export default function CustomerRequestCard({
 }: {
   request: CustomerRequest;
 }) {
-  const router = useRouter();
   const { customer } = useCustomerAuth();
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState("");
 
   const activeAmenities = (
     Object.keys(request.amenities) as Array<keyof typeof request.amenities>
   ).filter((key) => request.amenities[key]);
 
   const canManage = customer?.id === request.customerId;
-
-  async function handleDelete() {
-    if (!customer || !canManage || deleting) return;
-
-    const confirmed = confirm(
-      "Delete this request permanently? Agencies will no longer see it and related chats will be removed.",
-    );
-    if (!confirmed) return;
-
-    setDeleting(true);
-    setError("");
-
-    try {
-      await deleteCustomerRequest(customer.id, request.id);
-      router.refresh();
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Could not delete this request.",
-      );
-    } finally {
-      setDeleting(false);
-    }
-  }
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -118,8 +87,6 @@ export default function CustomerRequestCard({
         </div>
       ) : null}
 
-      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-
       <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4">
         <Link
           href={`/customer/requests/${request.id}`}
@@ -134,16 +101,6 @@ export default function CustomerRequestCard({
           >
             Edit
           </Link>
-        ) : null}
-        {canManage ? (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
         ) : null}
       </div>
     </article>
