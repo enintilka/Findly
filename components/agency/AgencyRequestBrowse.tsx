@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AgencyRequestCard from "@/components/agency/AgencyRequestCard";
-import { Input, Label, Select } from "@/components/ui/primitives";
+import { Input, Label, Select, Button } from "@/components/ui/primitives";
 import {
   filterRequests,
   getAllOpenRequests,
@@ -15,10 +15,13 @@ import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 type Tab = "all" | "saved";
 type RequestSortOrder = "newest" | "oldest";
 
+const REQUESTS_PER_PAGE = 5;
+
 export default function AgencyRequestBrowse() {
   const { agency } = useAgencyAuth();
   const [tab, setTab] = useState<Tab>("all");
   const [sortOrder, setSortOrder] = useState<RequestSortOrder>("newest");
+  const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<RequestFilters>(EMPTY_REQUEST_FILTERS);
   const [allRequests, setAllRequests] = useState<CustomerRequest[]>([]);
   const [savedRequests, setSavedRequests] = useState<CustomerRequest[]>([]);
@@ -42,6 +45,36 @@ export default function AgencyRequestBrowse() {
       return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
     });
   }, [tab, savedRequests, allRequests, filters, sortOrder]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleRequests.length / REQUESTS_PER_PAGE),
+  );
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * REQUESTS_PER_PAGE;
+    return visibleRequests.slice(start, start + REQUESTS_PER_PAGE);
+  }, [visibleRequests, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tab, sortOrder, filters, allRequests.length, savedRequests.length]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const showingFrom =
+    visibleRequests.length === 0
+      ? 0
+      : (currentPage - 1) * REQUESTS_PER_PAGE + 1;
+  const showingTo = Math.min(
+    currentPage * REQUESTS_PER_PAGE,
+    visibleRequests.length,
+  );
+  const hasMultiplePages = visibleRequests.length > REQUESTS_PER_PAGE;
 
   function updateFilter<Key extends keyof RequestFilters>(
     key: Key,
@@ -176,10 +209,69 @@ export default function AgencyRequestBrowse() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {visibleRequests.map((request) => (
-            <AgencyRequestCard key={request.id} request={request} />
-          ))}
+        <div className="space-y-4" data-request-pagination>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {paginatedRequests.map((request) => (
+              <AgencyRequestCard key={request.id} request={request} />
+            ))}
+          </div>
+
+          {hasMultiplePages ? (
+            <nav
+              aria-label="Request pages"
+              className="rounded-xl border border-slate-200 bg-white p-4"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-600">
+                  Showing{" "}
+                  <span className="font-medium text-slate-900">
+                    {showingFrom}–{showingTo}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-medium text-slate-900">
+                    {visibleRequests.length}
+                  </span>{" "}
+                  requests · {REQUESTS_PER_PAGE} per page
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((page) => page - 1)}
+                  >
+                    Previous
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                    (page) => (
+                      <Button
+                        key={page}
+                        type="button"
+                        variant={page === currentPage ? "violet" : "secondary"}
+                        onClick={() => setCurrentPage(page)}
+                        aria-current={page === currentPage ? "page" : undefined}
+                      >
+                        {page}
+                      </Button>
+                    ),
+                  )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((page) => page + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </nav>
+          ) : (
+            <p className="text-sm text-slate-500">
+              {visibleRequests.length} request
+              {visibleRequests.length === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
       )}
     </div>
