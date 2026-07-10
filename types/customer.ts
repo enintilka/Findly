@@ -40,6 +40,19 @@ export interface RequestImage {
   storagePath?: string;
 }
 
+export interface RequestPropertyDetails {
+  zoning?: string;
+  buildable?: string;
+  roadAccess?: string;
+  terrain?: string;
+  utilitiesWater?: boolean;
+  utilitiesElectricity?: boolean;
+  utilitiesSewage?: boolean;
+  commercialUse?: string;
+  parkingSpaces?: number;
+  floorLevel?: number;
+}
+
 export interface CustomerRequest {
   id: string;
   customerId: string;
@@ -55,6 +68,7 @@ export interface CustomerRequest {
   sizeMax?: number;
   bedrooms?: number;
   bathrooms?: number;
+  propertyDetails?: RequestPropertyDetails;
   amenities: RequestAmenities;
   additionalNotes?: string;
   images: RequestImage[];

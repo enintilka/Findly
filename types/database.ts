@@ -1,4 +1,4 @@
-import type { RequestAmenities } from "@/types/customer";
+import type { RequestAmenities, RequestPropertyDetails } from "@/types/customer";
 
 export type RequestRow = {
   id: string;
@@ -15,6 +15,7 @@ export type RequestRow = {
   size_max: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
+  property_details: RequestPropertyDetails | null;
   amenities: RequestAmenities;
   additional_notes: string | null;
   pdf_names: string[];
@@ -144,6 +145,7 @@ export type Database = {
           size_max?: number | null;
           bedrooms?: number | null;
           bathrooms?: number | null;
+          property_details?: RequestPropertyDetails | null;
           amenities?: RequestAmenities;
           additional_notes?: string | null;
           pdf_names?: string[];

@@ -15,6 +15,10 @@ import {
   toggleSavedRequest,
 } from "@/lib/agency-store";
 import {
+  formatPropertyDetailLines,
+  getPropertyTypeFormConfig,
+} from "@/lib/request-property-config";
+import {
   AMENITY_LABELS,
   PROPERTY_TYPE_LABELS,
   type CustomerRequest,
@@ -100,26 +104,45 @@ function RequestDetail() {
                 {formatCurrency(request.budgetMax)}
               </dd>
             </div>
-            {request.bedrooms ? (
+            {getPropertyTypeFormConfig(request.propertyType).showBedrooms &&
+            request.bedrooms ? (
               <div className="flex justify-between">
-                <dt className="text-slate-500">Bedrooms</dt>
+                <dt className="text-slate-500">
+                  {getPropertyTypeFormConfig(request.propertyType).bedroomsLabel}
+                </dt>
                 <dd className="font-medium">{request.bedrooms}</dd>
               </div>
             ) : null}
-            {request.bathrooms ? (
+            {getPropertyTypeFormConfig(request.propertyType).showBathrooms &&
+            request.bathrooms ? (
               <div className="flex justify-between">
-                <dt className="text-slate-500">Bathrooms</dt>
+                <dt className="text-slate-500">
+                  {getPropertyTypeFormConfig(request.propertyType).bathroomsLabel}
+                </dt>
                 <dd className="font-medium">{request.bathrooms}</dd>
               </div>
             ) : null}
             {request.sizeMin || request.sizeMax ? (
               <div className="flex justify-between">
-                <dt className="text-slate-500">Size</dt>
+                <dt className="text-slate-500">
+                  {getPropertyTypeFormConfig(request.propertyType).sizeMinLabel.replace(
+                    " min",
+                    "",
+                  )}
+                </dt>
                 <dd className="font-medium">
                   {request.sizeMin ?? "?"} – {request.sizeMax ?? "?"} m²
                 </dd>
               </div>
             ) : null}
+            {formatPropertyDetailLines(request.propertyDetails).map((line) => (
+              <div key={line} className="flex justify-between gap-4">
+                <dt className="text-slate-500 shrink-0">{line.split(": ")[0]}</dt>
+                <dd className="font-medium text-right">
+                  {line.includes(": ") ? line.split(": ").slice(1).join(": ") : line}
+                </dd>
+              </div>
+            ))}
           </dl>
         </section>
 

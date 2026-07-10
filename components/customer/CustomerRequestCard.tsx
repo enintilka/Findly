@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
 import {
+  formatPropertyDetailLines,
+  getPropertyTypeFormConfig,
+} from "@/lib/request-property-config";
+import {
   AMENITY_LABELS,
   PROPERTY_TYPE_LABELS,
   type CustomerRequest,
@@ -57,9 +61,11 @@ export default function CustomerRequestCard({
         <span className="rounded-full bg-slate-100 px-3 py-1">
           {formatCurrency(request.budgetMin)} – {formatCurrency(request.budgetMax)}
         </span>
-        {request.bedrooms ? (
+        {getPropertyTypeFormConfig(request.propertyType).showBedrooms &&
+        request.bedrooms ? (
           <span className="rounded-full bg-slate-100 px-3 py-1">
-            {request.bedrooms} beds
+            {request.bedrooms}{" "}
+            {getPropertyTypeFormConfig(request.propertyType).bedroomsLabel.toLowerCase()}
           </span>
         ) : null}
         {request.sizeMin || request.sizeMax ? (
@@ -67,6 +73,13 @@ export default function CustomerRequestCard({
             {request.sizeMin ?? "?"}–{request.sizeMax ?? "?"} m²
           </span>
         ) : null}
+        {formatPropertyDetailLines(request.propertyDetails)
+          .slice(0, 2)
+          .map((line) => (
+            <span key={line} className="rounded-full bg-slate-100 px-3 py-1">
+              {line}
+            </span>
+          ))}
       </div>
 
       {activeAmenities.length > 0 ? (

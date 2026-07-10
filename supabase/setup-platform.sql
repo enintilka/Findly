@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.requests (
   size_max numeric,
   bedrooms integer,
   bathrooms integer,
+  property_details jsonb NOT NULL DEFAULT '{}'::jsonb,
   amenities jsonb NOT NULL DEFAULT '{}'::jsonb,
   additional_notes text,
   pdf_names text[] NOT NULL DEFAULT '{}',
