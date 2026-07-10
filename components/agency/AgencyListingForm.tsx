@@ -104,8 +104,8 @@ export default function AgencyListingForm({
     setError("");
 
     const form = new FormData(event.currentTarget);
-    const budgetMin = Number(form.get("budgetMin"));
-    const budgetMax = Number(form.get("budgetMax"));
+    const price = Number(form.get("price"));
+    const size = Number(form.get("size")) || undefined;
 
     const payload = {
       title: String(form.get("title")).trim(),
@@ -113,15 +113,14 @@ export default function AgencyListingForm({
       city: String(form.get("city")).trim(),
       country: String(form.get("country")).trim(),
       propertyType: String(form.get("propertyType")) as PropertyType,
-      budgetMin,
-      budgetMax,
-      sizeMin: Number(form.get("sizeMin")) || undefined,
-      sizeMax: Number(form.get("sizeMax")) || undefined,
+      budgetMin: price,
+      budgetMax: price,
+      sizeMax: size,
       bedrooms: Number(form.get("bedrooms")) || undefined,
       bathrooms: Number(form.get("bathrooms")) || undefined,
       amenities,
       images,
-      price: budgetMax,
+      price,
     };
 
     if (!payload.title || !payload.description || !payload.country) {
@@ -129,13 +128,8 @@ export default function AgencyListingForm({
       return;
     }
 
-    if (!budgetMin || !budgetMax) {
-      setError("Budget min and max are required.");
-      return;
-    }
-
-    if (budgetMax < budgetMin) {
-      setError("Maximum budget must be greater than or equal to minimum budget.");
+    if (!price) {
+      setError("Price is required.");
       return;
     }
 
@@ -246,53 +240,28 @@ export default function AgencyListingForm({
           </div>
           <div />
           <div>
-            <Label htmlFor="budgetMin" required>
-              Budget min (€)
+            <Label htmlFor="price" required>
+              Price (€)
             </Label>
             <Input
-              id="budgetMin"
-              name="budgetMin"
+              id="price"
+              name="price"
               type="number"
               required
               min={0}
-              defaultValue={listing?.budgetMin ?? listing?.price ?? ""}
-              placeholder="100000"
+              defaultValue={listing?.price ?? listing?.budgetMax ?? ""}
+              placeholder="125000"
             />
           </div>
           <div>
-            <Label htmlFor="budgetMax" required>
-              Budget max (€)
-            </Label>
+            <Label htmlFor="size">Size (m²)</Label>
             <Input
-              id="budgetMax"
-              name="budgetMax"
-              type="number"
-              required
-              min={0}
-              defaultValue={listing?.budgetMax ?? listing?.price ?? ""}
-              placeholder="130000"
-            />
-          </div>
-          <div>
-            <Label htmlFor="sizeMin">Size min (m²)</Label>
-            <Input
-              id="sizeMin"
-              name="sizeMin"
+              id="size"
+              name="size"
               type="number"
               min={0}
-              defaultValue={listing?.sizeMin ?? ""}
-              placeholder="50"
-            />
-          </div>
-          <div>
-            <Label htmlFor="sizeMax">Size max (m²)</Label>
-            <Input
-              id="sizeMax"
-              name="sizeMax"
-              type="number"
-              min={0}
-              defaultValue={listing?.sizeMax ?? ""}
-              placeholder="60"
+              defaultValue={listing?.sizeMax ?? listing?.sizeMin ?? ""}
+              placeholder="120"
             />
           </div>
           <div>
