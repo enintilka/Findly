@@ -1,27 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import AgencyPropertyList from "@/components/agency/AgencyPropertyList";
 import AgencyRequestBrowse from "@/components/agency/AgencyRequestBrowse";
 import ChatThreadList from "@/components/chat/ChatThreadList";
-import { getListingsForAgency } from "@/lib/agency-store";
-import type { AgencyListing } from "@/types/agency";
 
 export default function AgencyDashboardContent() {
   const { agency } = useAgencyAuth();
-  const [listings, setListings] = useState<AgencyListing[]>([]);
-
-  useEffect(() => {
-    if (!agency) return;
-    const refresh = async () => {
-      setListings(await getListingsForAgency(agency.id));
-    };
-    void refresh();
-    window.addEventListener("findly-platform-change", refresh);
-    return () => window.removeEventListener("findly-platform-change", refresh);
-  }, [agency]);
 
   return (
     <div className="space-y-10">
@@ -85,20 +71,7 @@ export default function AgencyDashboardContent() {
       </section>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <section>
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">
-              Your properties
-            </h2>
-            {listings.length > 0 ? (
-              <p className="mt-1 text-sm text-slate-500">
-                {listings.length} total · 5 per page
-              </p>
-            ) : null}
-          </div>
-
-          <AgencyPropertyList listings={listings} />
-        </section>
+        <AgencyPropertyList />
 
         <section>
           <div className="mb-4 flex items-center justify-between">

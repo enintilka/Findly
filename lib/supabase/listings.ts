@@ -62,6 +62,40 @@ export async function fetchListingsForAgency(
   return (data ?? []).map((row) => rowToListing(row as ListingRow));
 }
 
+export type AgencyListingsPage = {
+  listings: AgencyListing[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export async function fetchListingsPageForAgency(
+  agencyId: string,
+  page: number,
+  pageSize = 5,
+): Promise<AgencyListingsPage> {
+  const supabase = createClient();
+  const safePage = Math.max(1, page);
+  const from = (safePage - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, count, error } = await supabase
+    .from("listings")
+    .select("*", { count: "exact" })
+    .eq("agency_id", agencyId)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (error) throw new Error(error.message);
+
+  return {
+    listings: (data ?? []).map((row) => rowToListing(row as ListingRow)),
+    total: count ?? 0,
+    page: safePage,
+    pageSize,
+  };
+}
+
 export async function fetchAgencyListingById(
   listingId: string,
 ): Promise<AgencyListing | null> {

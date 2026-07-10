@@ -27,6 +27,7 @@ import {
   deleteListing,
   fetchAgencyListingById,
   fetchListingsForAgency,
+  fetchListingsPageForAgency,
   updateListing,
 } from "@/lib/supabase/listings";
 import {
@@ -235,6 +236,14 @@ export async function getListingsForAgency(
   agencyId: string,
 ): Promise<AgencyListing[]> {
   return fetchListingsForAgency(agencyId);
+}
+
+export async function getListingsPageForAgency(
+  agencyId: string,
+  page: number,
+  pageSize = 5,
+) {
+  return fetchListingsPageForAgency(agencyId, page, pageSize);
 }
 
 export async function getAgencyListingById(
