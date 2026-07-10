@@ -8,7 +8,7 @@ import {
   FieldGroup,
   FormSection,
 } from "@/components/customer/FormSection";
-import { createCustomerRequest, updateCustomerRequest } from "@/lib/customer-store";
+import { createCustomerRequest, deleteCustomerRequest, updateCustomerRequest } from "@/lib/customer-store";
 import {
   AMENITY_LABELS,
   EMPTY_AMENITIES,
@@ -58,6 +58,7 @@ export default function CustomerRequestForm({
   const { customer } = useCustomerAuth();
   const isEdit = Boolean(request);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [amenities, setAmenities] = useState<RequestAmenities>(
     request?.amenities ?? EMPTY_AMENITIES,
   );
@@ -66,6 +67,30 @@ export default function CustomerRequestForm({
 
   function handleAmenityChange(key: keyof RequestAmenities, value: boolean) {
     setAmenities((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleDelete() {
+    if (!customer || !request || deleting) return;
+
+    const confirmed = confirm(
+      "Delete this request permanently? Agencies will no longer see it and related chats will be removed.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      await deleteCustomerRequest(customer.id, request.id);
+      router.push("/customer/dashboard");
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not delete this request.",
+      );
+      setDeleting(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -338,23 +363,38 @@ export default function CustomerRequestForm({
         />
       </FormSection>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() =>
-            router.push(
-              isEdit && request
-                ? `/customer/requests/${request.id}`
-                : "/customer/dashboard",
-            )
-          }
-        >
-          Cancel
-        </Button>
-        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-          {isEdit ? "Save changes" : "Publish request"}
-        </Button>
+      <div className="flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        {isEdit && request ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            {deleting ? "Deleting..." : "Delete request"}
+          </Button>
+        ) : (
+          <span />
+        )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() =>
+              router.push(
+                isEdit && request
+                  ? `/customer/requests/${request.id}`
+                  : "/customer/dashboard",
+              )
+            }
+          >
+            Cancel
+          </Button>
+          <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+            {isEdit ? "Save changes" : "Publish request"}
+          </Button>
+        </div>
       </div>
     </form>
   );
