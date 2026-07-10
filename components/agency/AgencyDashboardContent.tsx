@@ -5,14 +5,20 @@ import { useEffect, useMemo, useState } from "react";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import AgencyRequestBrowse from "@/components/agency/AgencyRequestBrowse";
 import ChatThreadList from "@/components/chat/ChatThreadList";
-import { Button, Label, Select } from "@/components/ui/primitives";
+import { Button, Input, Label, Select } from "@/components/ui/primitives";
 import { getListingsForAgency } from "@/lib/agency-store";
 import { getListingImages } from "@/lib/listing-images";
 import type { AgencyListing } from "@/types/agency";
+import { PROPERTY_TYPE_LABELS, type PropertyType } from "@/types/customer";
 
 const LISTINGS_PER_PAGE = 5;
 
 type ListingSortOrder = "newest" | "oldest";
+
+type ListingFilters = {
+  search: string;
+  propertyType: string;
+};
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-EU", {
@@ -25,6 +31,10 @@ function formatCurrency(value: number) {
 export default function AgencyDashboardContent() {
   const { agency } = useAgencyAuth();
   const [listings, setListings] = useState<AgencyListing[]>([]);
+  const [filters, setFilters] = useState<ListingFilters>({
+    search: "",
+    propertyType: "",
+  });
   const [sortOrder, setSortOrder] = useState<ListingSortOrder>("newest");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -38,13 +48,32 @@ export default function AgencyDashboardContent() {
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency]);
 
+  const filteredListings = useMemo(() => {
+    const search = filters.search.toLowerCase().trim();
+    return listings.filter((listing) => {
+      if (filters.propertyType && listing.propertyType !== filters.propertyType) {
+        return false;
+      }
+      if (!search) return true;
+      const haystack = [
+        listing.title,
+        listing.city,
+        listing.country,
+        listing.description,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(search);
+    });
+  }, [listings, filters]);
+
   const sortedListings = useMemo(() => {
-    return [...listings].sort((a, b) => {
+    return [...filteredListings].sort((a, b) => {
       const aTime = new Date(a.createdAt).getTime();
       const bTime = new Date(b.createdAt).getTime();
       return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
     });
-  }, [listings, sortOrder]);
+  }, [filteredListings, sortOrder]);
 
   const totalPages = Math.max(
     1,
@@ -58,7 +87,7 @@ export default function AgencyDashboardContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [sortOrder, listings.length]);
+  }, [sortOrder, filters.search, filters.propertyType, listings.length]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -66,9 +95,21 @@ export default function AgencyDashboardContent() {
     }
   }, [currentPage, totalPages]);
 
-  function handleSortChange(value: ListingSortOrder) {
-    setSortOrder(value);
+  function updateFilter<Key extends keyof ListingFilters>(
+    key: Key,
+    value: ListingFilters[Key],
+  ) {
+    setFilters((current) => ({ ...current, [key]: value }));
   }
+
+  const showingFrom =
+    sortedListings.length === 0
+      ? 0
+      : (currentPage - 1) * LISTINGS_PER_PAGE + 1;
+  const showingTo = Math.min(
+    currentPage * LISTINGS_PER_PAGE,
+    sortedListings.length,
+  );
 
   return (
     <div className="space-y-10">
@@ -133,36 +174,17 @@ export default function AgencyDashboardContent() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">
-                Your properties
-              </h2>
-              {listings.length > 0 ? (
-                <p className="mt-1 text-sm text-slate-500">
-                  {listings.length} total
-                </p>
-              ) : null}
-            </div>
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">
+              Your properties
+            </h2>
             {listings.length > 0 ? (
-              <div className="w-full sm:w-auto">
-                <Label htmlFor="listingSort" className="text-xs text-slate-500">
-                  Sort by
-                </Label>
-                <Select
-                  id="listingSort"
-                  value={sortOrder}
-                  onChange={(event) =>
-                    handleSortChange(event.target.value as ListingSortOrder)
-                  }
-                  className="mt-1"
-                >
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                </Select>
-              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                {listings.length} total
+              </p>
             ) : null}
           </div>
+
           {listings.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
               <p className="text-sm text-slate-600">
@@ -177,6 +199,62 @@ export default function AgencyDashboardContent() {
             </div>
           ) : (
             <>
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="listingSearch">Search</Label>
+                    <Input
+                      id="listingSearch"
+                      value={filters.search}
+                      onChange={(event) =>
+                        updateFilter("search", event.target.value)
+                      }
+                      placeholder="Title, city, or country"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="listingPropertyType">Property type</Label>
+                    <Select
+                      id="listingPropertyType"
+                      value={filters.propertyType}
+                      onChange={(event) =>
+                        updateFilter("propertyType", event.target.value)
+                      }
+                    >
+                      <option value="">All types</option>
+                      {(Object.keys(PROPERTY_TYPE_LABELS) as PropertyType[]).map(
+                        (type) => (
+                          <option key={type} value={type}>
+                            {PROPERTY_TYPE_LABELS[type]}
+                          </option>
+                        ),
+                      )}
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="listingSort">Sort by</Label>
+                    <Select
+                      id="listingSort"
+                      value={sortOrder}
+                      onChange={(event) =>
+                        setSortOrder(event.target.value as ListingSortOrder)
+                      }
+                    >
+                      <option value="newest">Newest first</option>
+                      <option value="oldest">Oldest first</option>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {sortedListings.length === 0 ? (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                  <p className="text-sm text-slate-600">
+                    No properties match your filters.
+                  </p>
+                </div>
+              ) : (
+                <>
               <div className="mt-4 space-y-3">
                 {paginatedListings.map((listing) => {
                 const cover = getListingImages(listing)[0];
@@ -227,11 +305,14 @@ export default function AgencyDashboardContent() {
               })}
               </div>
 
-              {totalPages > 1 ? (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                  <p className="text-sm text-slate-500">
-                    Page {currentPage} of {totalPages}
-                  </p>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <p className="text-sm text-slate-500">
+                  {sortedListings.length > LISTINGS_PER_PAGE
+                    ? `Showing ${showingFrom}–${showingTo} of ${sortedListings.length}`
+                    : `${sortedListings.length} propert${sortedListings.length === 1 ? "y" : "ies"}`}
+                  {totalPages > 1 ? ` · Page ${currentPage} of ${totalPages}` : ""}
+                </p>
+                {totalPages > 1 ? (
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -251,11 +332,13 @@ export default function AgencyDashboardContent() {
                         setCurrentPage((page) => Math.min(totalPages, page + 1))
                       }
                     >
-                      Next
+                      Next page
                     </Button>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
+                </>
+              )}
             </>
           )}
         </section>
