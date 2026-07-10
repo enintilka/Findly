@@ -111,6 +111,14 @@ CREATE TABLE IF NOT EXISTS public.listings (
   city text NOT NULL DEFAULT '',
   country text NOT NULL,
   price numeric NOT NULL,
+  property_type text NOT NULL DEFAULT 'apartment',
+  budget_min numeric NOT NULL DEFAULT 0,
+  budget_max numeric NOT NULL DEFAULT 0,
+  size_min numeric,
+  size_max numeric,
+  bedrooms integer,
+  bathrooms integer,
+  amenities jsonb NOT NULL DEFAULT '{}'::jsonb,
   images jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );

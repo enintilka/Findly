@@ -1,3 +1,5 @@
+import type { PropertyType, RequestAmenities } from "@/types/customer";
+
 export interface Agency {
   id: string;
   contactName: string;
@@ -29,6 +31,14 @@ export interface AgencyListing {
   city: string;
   country: string;
   price: number;
+  propertyType: PropertyType;
+  budgetMin: number;
+  budgetMax: number;
+  sizeMin?: number;
+  sizeMax?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  amenities: RequestAmenities;
   images: ListingImage[];
   createdAt: string;
 }

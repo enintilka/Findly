@@ -11,7 +11,49 @@ import {
   updateAgencyListing,
 } from "@/lib/agency-store";
 import type { AgencyListing, ListingImage } from "@/types/agency";
-import { Button, FormError, Input, Label, Textarea } from "@/components/ui/primitives";
+import {
+  AMENITY_LABELS,
+  EMPTY_AMENITIES,
+  PROPERTY_TYPE_LABELS,
+  type PropertyType,
+  type RequestAmenities,
+} from "@/types/customer";
+import {
+  Button,
+  FormError,
+  Input,
+  Label,
+  Select,
+  Textarea,
+} from "@/components/ui/primitives";
+
+function AmenityCheckbox({
+  id,
+  label,
+  checked,
+  onChange,
+}: {
+  id: keyof RequestAmenities;
+  label: string;
+  checked: boolean;
+  onChange: (key: keyof RequestAmenities, value: boolean) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-violet-200 hover:bg-violet-50/50"
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(id, event.target.checked)}
+        className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+      />
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+    </label>
+  );
+}
 
 export default function AgencyListingForm({
   listing,
@@ -24,6 +66,13 @@ export default function AgencyListingForm({
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [images, setImages] = useState<ListingImage[]>(listing?.images ?? []);
+  const [amenities, setAmenities] = useState<RequestAmenities>(
+    listing?.amenities ?? EMPTY_AMENITIES,
+  );
+
+  function handleAmenityChange(key: keyof RequestAmenities, value: boolean) {
+    setAmenities((current) => ({ ...current, [key]: value }));
+  }
 
   async function handleDelete() {
     if (!agency || !listing || deleting) return;
@@ -55,17 +104,38 @@ export default function AgencyListingForm({
     setError("");
 
     const form = new FormData(event.currentTarget);
+    const budgetMin = Number(form.get("budgetMin"));
+    const budgetMax = Number(form.get("budgetMax"));
+
     const payload = {
       title: String(form.get("title")).trim(),
       description: String(form.get("description")).trim(),
       city: String(form.get("city")).trim(),
       country: String(form.get("country")).trim(),
-      price: Number(form.get("price")),
+      propertyType: String(form.get("propertyType")) as PropertyType,
+      budgetMin,
+      budgetMax,
+      sizeMin: Number(form.get("sizeMin")) || undefined,
+      sizeMax: Number(form.get("sizeMax")) || undefined,
+      bedrooms: Number(form.get("bedrooms")) || undefined,
+      bathrooms: Number(form.get("bathrooms")) || undefined,
+      amenities,
       images,
+      price: budgetMax,
     };
 
-    if (!payload.title || !payload.description || !payload.country || !payload.price) {
-      setError("Title, description, country, and price are required.");
+    if (!payload.title || !payload.description || !payload.country) {
+      setError("Title, description, and country are required.");
+      return;
+    }
+
+    if (!budgetMin || !budgetMax) {
+      setError("Budget min and max are required.");
+      return;
+    }
+
+    if (budgetMax < budgetMin) {
+      setError("Maximum budget must be greater than or equal to minimum budget.");
       return;
     }
 
@@ -131,7 +201,7 @@ export default function AgencyListingForm({
               defaultValue={listing?.description ?? ""}
             />
           </div>
-          <FieldGroup columns={3}>
+          <FieldGroup columns={2}>
             <div>
               <Label htmlFor="country" required>
                 Country
@@ -151,20 +221,121 @@ export default function AgencyListingForm({
                 defaultValue={listing?.city ?? ""}
               />
             </div>
-            <div>
-              <Label htmlFor="price" required>
-                Price (€)
-              </Label>
-              <Input
-                id="price"
-                name="price"
-                type="number"
-                required
-                min={0}
-                defaultValue={listing?.price ?? ""}
-              />
-            </div>
           </FieldGroup>
+        </div>
+      </FormSection>
+
+      <FormSection title="Property details">
+        <FieldGroup columns={2}>
+          <div>
+            <Label htmlFor="propertyType" required>
+              Property type
+            </Label>
+            <Select
+              id="propertyType"
+              name="propertyType"
+              required
+              defaultValue={listing?.propertyType ?? "vacation_home"}
+            >
+              {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div />
+          <div>
+            <Label htmlFor="budgetMin" required>
+              Budget min (€)
+            </Label>
+            <Input
+              id="budgetMin"
+              name="budgetMin"
+              type="number"
+              required
+              min={0}
+              defaultValue={listing?.budgetMin ?? listing?.price ?? ""}
+              placeholder="100000"
+            />
+          </div>
+          <div>
+            <Label htmlFor="budgetMax" required>
+              Budget max (€)
+            </Label>
+            <Input
+              id="budgetMax"
+              name="budgetMax"
+              type="number"
+              required
+              min={0}
+              defaultValue={listing?.budgetMax ?? listing?.price ?? ""}
+              placeholder="130000"
+            />
+          </div>
+          <div>
+            <Label htmlFor="sizeMin">Size min (m²)</Label>
+            <Input
+              id="sizeMin"
+              name="sizeMin"
+              type="number"
+              min={0}
+              defaultValue={listing?.sizeMin ?? ""}
+              placeholder="50"
+            />
+          </div>
+          <div>
+            <Label htmlFor="sizeMax">Size max (m²)</Label>
+            <Input
+              id="sizeMax"
+              name="sizeMax"
+              type="number"
+              min={0}
+              defaultValue={listing?.sizeMax ?? ""}
+              placeholder="60"
+            />
+          </div>
+          <div>
+            <Label htmlFor="bedrooms">Bedrooms</Label>
+            <Input
+              id="bedrooms"
+              name="bedrooms"
+              type="number"
+              min={0}
+              defaultValue={listing?.bedrooms ?? ""}
+              placeholder="2"
+            />
+          </div>
+          <div>
+            <Label htmlFor="bathrooms">Bathrooms</Label>
+            <Input
+              id="bathrooms"
+              name="bathrooms"
+              type="number"
+              min={0}
+              defaultValue={listing?.bathrooms ?? ""}
+              placeholder="1"
+            />
+          </div>
+        </FieldGroup>
+      </FormSection>
+
+      <FormSection
+        title="Amenities & preferences"
+        description="Select anything that applies. Leave unchecked if it doesn't matter."
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {(Object.keys(AMENITY_LABELS) as Array<keyof RequestAmenities>).map(
+            (key) => (
+              <AmenityCheckbox
+                key={key}
+                id={key}
+                label={AMENITY_LABELS[key]}
+                checked={amenities[key]}
+                onChange={handleAmenityChange}
+              />
+            ),
+          )}
         </div>
       </FormSection>
 

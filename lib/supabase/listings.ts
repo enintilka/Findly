@@ -8,11 +8,24 @@ import {
 import type { Agency } from "@/types/agency";
 import type { AgencyListing, ListingImage } from "@/types/agency";
 import type { ListingRow } from "@/types/database";
+import {
+  EMPTY_AMENITIES,
+  type PropertyType,
+  type RequestAmenities,
+} from "@/types/customer";
 
 const BUCKET = "listing-images";
 
+function normalizeAmenities(value: unknown): RequestAmenities {
+  return { ...EMPTY_AMENITIES, ...(value as Partial<RequestAmenities>) };
+}
+
 export function rowToListing(row: ListingRow): AgencyListing {
   const storedImages = (row.images ?? []) as StoredFile[];
+  const price = Number(row.price);
+  const budgetMin = row.budget_min != null ? Number(row.budget_min) : price;
+  const budgetMax = row.budget_max != null ? Number(row.budget_max) : price;
+
   return {
     id: row.id,
     agencyId: row.agency_id,
@@ -21,7 +34,15 @@ export function rowToListing(row: ListingRow): AgencyListing {
     description: row.description,
     city: row.city,
     country: row.country,
-    price: Number(row.price),
+    price,
+    propertyType: (row.property_type ?? "apartment") as PropertyType,
+    budgetMin,
+    budgetMax,
+    sizeMin: row.size_min != null ? Number(row.size_min) : undefined,
+    sizeMax: row.size_max != null ? Number(row.size_max) : undefined,
+    bedrooms: row.bedrooms ?? undefined,
+    bathrooms: row.bathrooms ?? undefined,
+    amenities: normalizeAmenities(row.amenities),
     images: storedFilesToImages(BUCKET, storedImages),
     createdAt: row.created_at,
   };
@@ -110,7 +131,15 @@ export async function createListing(
       description: input.description,
       city: input.city,
       country: input.country,
-      price: input.price,
+      price: input.budgetMax,
+      property_type: input.propertyType,
+      budget_min: input.budgetMin,
+      budget_max: input.budgetMax,
+      size_min: input.sizeMin ?? null,
+      size_max: input.sizeMax ?? null,
+      bedrooms: input.bedrooms ?? null,
+      bathrooms: input.bathrooms ?? null,
+      amenities: input.amenities,
       images,
     })
     .select("*")
@@ -142,7 +171,15 @@ export async function updateListing(
       description: input.description,
       city: input.city,
       country: input.country,
-      price: input.price,
+      price: input.budgetMax,
+      property_type: input.propertyType,
+      budget_min: input.budgetMin,
+      budget_max: input.budgetMax,
+      size_min: input.sizeMin ?? null,
+      size_max: input.sizeMax ?? null,
+      bedrooms: input.bedrooms ?? null,
+      bathrooms: input.bathrooms ?? null,
+      amenities: input.amenities,
       images,
     })
     .eq("id", listingId)
