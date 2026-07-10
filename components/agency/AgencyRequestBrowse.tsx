@@ -13,10 +13,12 @@ import { EMPTY_REQUEST_FILTERS, type RequestFilters } from "@/types/agency";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 
 type Tab = "all" | "saved";
+type RequestSortOrder = "newest" | "oldest";
 
 export default function AgencyRequestBrowse() {
   const { agency } = useAgencyAuth();
   const [tab, setTab] = useState<Tab>("all");
+  const [sortOrder, setSortOrder] = useState<RequestSortOrder>("newest");
   const [filters, setFilters] = useState<RequestFilters>(EMPTY_REQUEST_FILTERS);
   const [allRequests, setAllRequests] = useState<CustomerRequest[]>([]);
   const [savedRequests, setSavedRequests] = useState<CustomerRequest[]>([]);
@@ -33,8 +35,13 @@ export default function AgencyRequestBrowse() {
 
   const visibleRequests = useMemo(() => {
     const source = tab === "saved" ? savedRequests : allRequests;
-    return filterRequests(source, filters);
-  }, [tab, savedRequests, allRequests, filters]);
+    const filtered = filterRequests(source, filters);
+    return [...filtered].sort((a, b) => {
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+    });
+  }, [tab, savedRequests, allRequests, filters, sortOrder]);
 
   function updateFilter<Key extends keyof RequestFilters>(
     key: Key,
@@ -142,6 +149,19 @@ export default function AgencyRequestBrowse() {
                 updateFilter("budgetMax", event.target.value)
               }
             />
+          </div>
+          <div>
+            <Label htmlFor="requestSort">Sort by</Label>
+            <Select
+              id="requestSort"
+              value={sortOrder}
+              onChange={(event) =>
+                setSortOrder(event.target.value as RequestSortOrder)
+              }
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </Select>
           </div>
         </div>
       </div>
