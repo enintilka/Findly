@@ -24,6 +24,7 @@ export {
 } from "@/lib/chat-drafts";
 import {
   createListing,
+  deleteListing,
   fetchAgencyListingById,
   fetchListingsForAgency,
   updateListing,
@@ -259,6 +260,13 @@ export async function updateAgencyListing(
   agencyName?: string,
 ): Promise<AgencyListing> {
   return updateListing(agencyId, listingId, updates, agencyName);
+}
+
+export async function deleteAgencyListing(
+  agencyId: string,
+  listingId: string,
+): Promise<void> {
+  return deleteListing(agencyId, listingId);
 }
 
 export async function startChatWithCustomer(

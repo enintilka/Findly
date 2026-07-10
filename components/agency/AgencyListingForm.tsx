@@ -7,6 +7,7 @@ import ListingPhotoUpload from "@/components/agency/ListingPhotoUpload";
 import { FieldGroup, FormSection } from "@/components/customer/FormSection";
 import {
   createAgencyListing,
+  deleteAgencyListing,
   updateAgencyListing,
 } from "@/lib/agency-store";
 import type { AgencyListing, ListingImage } from "@/types/agency";
@@ -21,7 +22,32 @@ export default function AgencyListingForm({
   const { agency } = useAgencyAuth();
   const isEdit = Boolean(listing);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [images, setImages] = useState<ListingImage[]>(listing?.images ?? []);
+
+  async function handleDelete() {
+    if (!agency || !listing || deleting) return;
+
+    const confirmed = confirm(
+      "Delete this property permanently? It will no longer appear in chat links or customer views.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      await deleteAgencyListing(agency.id, listing.id);
+      router.push("/agency/dashboard");
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not delete this property.",
+      );
+      setDeleting(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -148,6 +174,24 @@ export default function AgencyListingForm({
       >
         <ListingPhotoUpload images={images} onImagesChange={setImages} />
       </FormSection>
+
+      {isEdit && listing ? (
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-5">
+          <h2 className="text-sm font-semibold text-red-900">Delete this property</h2>
+          <p className="mt-1 text-sm text-red-800">
+            Permanently remove this listing. Customers will no longer be able to view it.
+          </p>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="mt-4"
+          >
+            {deleting ? "Deleting..." : "Delete property"}
+          </Button>
+        </section>
+      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
         <Button

@@ -241,6 +241,7 @@ DROP POLICY IF EXISTS "Authenticated upload request images" ON storage.objects;
 DROP POLICY IF EXISTS "Customers delete own request images" ON storage.objects;
 DROP POLICY IF EXISTS "Public read request images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated upload listing images" ON storage.objects;
+DROP POLICY IF EXISTS "Agencies delete own listing images" ON storage.objects;
 DROP POLICY IF EXISTS "Public read listing images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated upload chat attachments" ON storage.objects;
 DROP POLICY IF EXISTS "Public read chat attachments" ON storage.objects;
@@ -263,6 +264,13 @@ USING (bucket_id = 'request-images');
 CREATE POLICY "Authenticated upload listing images"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (bucket_id = 'listing-images');
+
+CREATE POLICY "Agencies delete own listing images"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'listing-images'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
 
 CREATE POLICY "Public read listing images"
 ON storage.objects FOR SELECT TO public

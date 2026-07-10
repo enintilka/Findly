@@ -8,9 +8,10 @@ import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
 import AgencyHeader from "@/components/agency/AgencyHeader";
 import ListingPhotos from "@/components/agency/ListingPhotos";
 import { AUTH_ROUTES } from "@/lib/auth-routes";
-import { getAgencyListingById } from "@/lib/agency-store";
+import { deleteAgencyListing, getAgencyListingById } from "@/lib/agency-store";
 import { getListingImages } from "@/lib/listing-images";
 import type { AgencyListing } from "@/types/agency";
+import { Button } from "@/components/ui/primitives";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-EU", {
@@ -22,9 +23,12 @@ function formatCurrency(value: number) {
 
 function ListingDetailContent() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { agency } = useAgencyAuth();
   const [listing, setListing] = useState<AgencyListing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!agency) return;
@@ -73,6 +77,30 @@ function ListingDetailContent() {
   const location = [listing.city, listing.country].filter(Boolean).join(", ");
   const isOwner = listing.agencyId === agency?.id;
 
+  async function handleDelete() {
+    if (!agency || !listing || !isOwner || deleting) return;
+
+    const confirmed = confirm(
+      "Delete this property permanently? It will no longer appear in chat links or customer views.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      await deleteAgencyListing(agency.id, listing.id);
+      router.push("/agency/dashboard");
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not delete this property.",
+      );
+      setDeleting(false);
+    }
+  }
+
   return (
     <article className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
@@ -96,6 +124,8 @@ function ListingDetailContent() {
           ) : null}
         </div>
 
+        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+
         <p className="mt-6 text-2xl font-semibold text-violet-600">
           {formatCurrency(listing.price)}
         </p>
@@ -107,12 +137,24 @@ function ListingDetailContent() {
 
       <ListingPhotos listing={listing} />
 
-      <Link
-        href="/agency/chat"
-        className="inline-block text-sm font-medium text-violet-600 hover:text-violet-700"
-      >
-        ← Back to messages
-      </Link>
+      <div className="flex flex-wrap items-center gap-4">
+        <Link
+          href="/agency/dashboard"
+          className="inline-block text-sm font-medium text-violet-600 hover:text-violet-700"
+        >
+          ← Back to dashboard
+        </Link>
+        {isOwner ? (
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting..." : "Delete property"}
+          </Button>
+        ) : null}
+      </div>
     </article>
   );
 }

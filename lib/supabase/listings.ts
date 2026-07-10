@@ -155,6 +155,41 @@ export async function updateListing(
   return rowToListing(data as ListingRow);
 }
 
+export async function deleteListing(
+  agencyId: string,
+  listingId: string,
+): Promise<void> {
+  const supabase = createClient();
+  const listing = await fetchAgencyListingById(listingId);
+
+  if (!listing || listing.agencyId !== agencyId) {
+    throw new Error("Property not found.");
+  }
+
+  const imagePaths = (listing.images ?? [])
+    .map((image) => image.storagePath)
+    .filter((path): path is string => Boolean(path));
+
+  if (imagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from(BUCKET)
+      .remove(imagePaths);
+
+    if (storageError) {
+      throw new Error(storageError.message);
+    }
+  }
+
+  const { error } = await supabase
+    .from("listings")
+    .delete()
+    .eq("id", listingId)
+    .eq("agency_id", agencyId);
+
+  if (error) throw new Error(error.message);
+  notifyPlatformChange();
+}
+
 export function getListingImages(listing: AgencyListing): ListingImage[] {
   return listing.images ?? [];
 }
