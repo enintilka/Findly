@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import AgencyRequestBrowse from "@/components/agency/AgencyRequestBrowse";
 import ChatThreadList from "@/components/chat/ChatThreadList";
+import { Button, Label, Select } from "@/components/ui/primitives";
 import { getListingsForAgency } from "@/lib/agency-store";
 import { getListingImages } from "@/lib/listing-images";
 import type { AgencyListing } from "@/types/agency";
+
+const LISTINGS_PER_PAGE = 5;
+
+type ListingSortOrder = "newest" | "oldest";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-EU", {
@@ -20,6 +25,8 @@ function formatCurrency(value: number) {
 export default function AgencyDashboardContent() {
   const { agency } = useAgencyAuth();
   const [listings, setListings] = useState<AgencyListing[]>([]);
+  const [sortOrder, setSortOrder] = useState<ListingSortOrder>("newest");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!agency) return;
@@ -30,6 +37,38 @@ export default function AgencyDashboardContent() {
     window.addEventListener("findly-platform-change", refresh);
     return () => window.removeEventListener("findly-platform-change", refresh);
   }, [agency]);
+
+  const sortedListings = useMemo(() => {
+    return [...listings].sort((a, b) => {
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+    });
+  }, [listings, sortOrder]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedListings.length / LISTINGS_PER_PAGE),
+  );
+
+  const paginatedListings = useMemo(() => {
+    const start = (currentPage - 1) * LISTINGS_PER_PAGE;
+    return sortedListings.slice(start, start + LISTINGS_PER_PAGE);
+  }, [sortedListings, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortOrder, listings.length]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  function handleSortChange(value: ListingSortOrder) {
+    setSortOrder(value);
+  }
 
   return (
     <div className="space-y-10">
@@ -94,9 +133,36 @@ export default function AgencyDashboardContent() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section>
-          <h2 className="text-xl font-semibold text-slate-900">
-            Your properties
-          </h2>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">
+                Your properties
+              </h2>
+              {listings.length > 0 ? (
+                <p className="mt-1 text-sm text-slate-500">
+                  {listings.length} total
+                </p>
+              ) : null}
+            </div>
+            {listings.length > 0 ? (
+              <div className="w-full sm:w-auto">
+                <Label htmlFor="listingSort" className="text-xs text-slate-500">
+                  Sort by
+                </Label>
+                <Select
+                  id="listingSort"
+                  value={sortOrder}
+                  onChange={(event) =>
+                    handleSortChange(event.target.value as ListingSortOrder)
+                  }
+                  className="mt-1"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </Select>
+              </div>
+            ) : null}
+          </div>
           {listings.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
               <p className="text-sm text-slate-600">
@@ -110,8 +176,9 @@ export default function AgencyDashboardContent() {
               </Link>
             </div>
           ) : (
-            <div className="mt-4 space-y-3">
-              {listings.map((listing) => {
+            <>
+              <div className="mt-4 space-y-3">
+                {paginatedListings.map((listing) => {
                 const cover = getListingImages(listing)[0];
                 return (
                   <article
@@ -158,7 +225,38 @@ export default function AgencyDashboardContent() {
                   </article>
                 );
               })}
-            </div>
+              </div>
+
+              {totalPages > 1 ? (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                  <p className="text-sm text-slate-500">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={currentPage <= 1}
+                      onClick={() =>
+                        setCurrentPage((page) => Math.max(1, page - 1))
+                      }
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={currentPage >= totalPages}
+                      onClick={() =>
+                        setCurrentPage((page) => Math.min(totalPages, page + 1))
+                      }
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
 
