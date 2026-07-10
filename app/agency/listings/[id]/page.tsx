@@ -7,6 +7,7 @@ import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import { useCustomerAuth } from "@/components/customer/CustomerAuthProvider";
 import AgencyHeader from "@/components/agency/AgencyHeader";
 import ListingPhotos from "@/components/agency/ListingPhotos";
+import ListingSpecs from "@/components/agency/ListingSpecs";
 import { AUTH_ROUTES } from "@/lib/auth-routes";
 import { deleteAgencyListing, getAgencyListingById } from "@/lib/agency-store";
 import { getListingImages } from "@/lib/listing-images";
@@ -134,6 +135,8 @@ function ListingDetailContent() {
           {listing.description}
         </div>
       </div>
+
+      <ListingSpecs listing={listing} />
 
       <ListingPhotos listing={listing} />
 

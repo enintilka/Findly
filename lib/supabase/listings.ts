@@ -42,6 +42,7 @@ export function rowToListing(row: ListingRow): AgencyListing {
     sizeMax: row.size_max != null ? Number(row.size_max) : undefined,
     bedrooms: row.bedrooms ?? undefined,
     bathrooms: row.bathrooms ?? undefined,
+    propertyDetails: row.property_details ?? undefined,
     amenities: normalizeAmenities(row.amenities),
     images: storedFilesToImages(BUCKET, storedImages),
     createdAt: row.created_at,
@@ -173,6 +174,7 @@ export async function createListing(
       size_max: input.sizeMax ?? null,
       bedrooms: input.bedrooms ?? null,
       bathrooms: input.bathrooms ?? null,
+      property_details: input.propertyDetails ?? {},
       amenities: input.amenities,
       images,
     })
@@ -213,6 +215,7 @@ export async function updateListing(
       size_max: input.sizeMax ?? null,
       bedrooms: input.bedrooms ?? null,
       bathrooms: input.bathrooms ?? null,
+      property_details: input.propertyDetails ?? {},
       amenities: input.amenities,
       images,
     })

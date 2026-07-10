@@ -1,4 +1,4 @@
-import type { PropertyType, RequestAmenities } from "@/types/customer";
+import type { PropertyType, RequestAmenities, RequestPropertyDetails } from "@/types/customer";
 
 export interface Agency {
   id: string;
@@ -38,6 +38,7 @@ export interface AgencyListing {
   sizeMax?: number;
   bedrooms?: number;
   bathrooms?: number;
+  propertyDetails?: RequestPropertyDetails;
   amenities: RequestAmenities;
   images: ListingImage[];
   createdAt: string;

@@ -40,6 +40,7 @@ export type ListingRow = {
   size_max: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
+  property_details: RequestPropertyDetails | null;
   amenities: RequestAmenities;
   images: unknown;
   created_at: string;
@@ -188,6 +189,7 @@ export type Database = {
           size_max?: number | null;
           bedrooms?: number | null;
           bathrooms?: number | null;
+          property_details?: RequestPropertyDetails | null;
           amenities?: RequestAmenities;
           images?: unknown;
           created_at?: string;

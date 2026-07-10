@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import ListingPhotoUpload from "@/components/agency/ListingPhotoUpload";
@@ -10,6 +10,14 @@ import {
   deleteAgencyListing,
   updateAgencyListing,
 } from "@/lib/agency-store";
+import {
+  collectPropertyDetails,
+  filterAmenitiesForPropertyType,
+  getPropertyTypeFormConfig,
+  getSingleSizeLabel,
+  PROPERTY_TYPE_FORM_CONFIG,
+  type ExtraField,
+} from "@/lib/request-property-config";
 import type { AgencyListing, ListingImage } from "@/types/agency";
 import {
   AMENITY_LABELS,
@@ -17,6 +25,7 @@ import {
   PROPERTY_TYPE_LABELS,
   type PropertyType,
   type RequestAmenities,
+  type RequestPropertyDetails,
 } from "@/types/customer";
 import {
   Button,
@@ -40,11 +49,11 @@ function AmenityCheckbox({
 }) {
   return (
     <label
-      htmlFor={id}
+      htmlFor={`listing-${id}`}
       className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-violet-200 hover:bg-violet-50/50"
     >
       <input
-        id={id}
+        id={`listing-${id}`}
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(id, event.target.checked)}
@@ -52,6 +61,73 @@ function AmenityCheckbox({
       />
       <span className="text-sm font-medium text-slate-700">{label}</span>
     </label>
+  );
+}
+
+function ExtraFieldInput({
+  field,
+  details,
+}: {
+  field: ExtraField;
+  details?: RequestPropertyDetails;
+}) {
+  const name = `detail_${field.key}`;
+  const defaultValue = details?.[field.key];
+
+  if (field.type === "checkbox") {
+    return (
+      <label
+        htmlFor={name}
+        className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-violet-200 hover:bg-violet-50/50"
+      >
+        <input
+          id={name}
+          name={name}
+          type="checkbox"
+          defaultChecked={Boolean(defaultValue)}
+          className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+        />
+        <span className="text-sm font-medium text-slate-700">{field.label}</span>
+      </label>
+    );
+  }
+
+  if (field.type === "select") {
+    return (
+      <div>
+        <Label htmlFor={name}>{field.label}</Label>
+        <Select
+          id={name}
+          name={name}
+          defaultValue={typeof defaultValue === "string" ? defaultValue : ""}
+        >
+          <option value="">Select…</option>
+          {field.options?.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </Select>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Label htmlFor={name}>{field.label}</Label>
+      <Input
+        id={name}
+        name={name}
+        type={field.type}
+        min={field.type === "number" ? 0 : undefined}
+        defaultValue={
+          defaultValue !== undefined && defaultValue !== false
+            ? String(defaultValue)
+            : ""
+        }
+        placeholder={field.placeholder}
+      />
+    </div>
   );
 }
 
@@ -65,10 +141,18 @@ export default function AgencyListingForm({
   const isEdit = Boolean(listing);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [propertyType, setPropertyType] = useState<PropertyType>(
+    listing?.propertyType ?? "vacation_home",
+  );
+  const formConfig = getPropertyTypeFormConfig(propertyType);
   const [images, setImages] = useState<ListingImage[]>(listing?.images ?? []);
   const [amenities, setAmenities] = useState<RequestAmenities>(
     listing?.amenities ?? EMPTY_AMENITIES,
   );
+
+  useEffect(() => {
+    setAmenities((current) => filterAmenitiesForPropertyType(propertyType, current));
+  }, [propertyType]);
 
   function handleAmenityChange(key: keyof RequestAmenities, value: boolean) {
     setAmenities((current) => ({ ...current, [key]: value }));
@@ -106,19 +190,26 @@ export default function AgencyListingForm({
     const form = new FormData(event.currentTarget);
     const price = Number(form.get("price"));
     const size = Number(form.get("size")) || undefined;
+    const selectedType = String(form.get("propertyType")) as PropertyType;
+    const typeConfig = PROPERTY_TYPE_FORM_CONFIG[selectedType];
 
     const payload = {
       title: String(form.get("title")).trim(),
       description: String(form.get("description")).trim(),
       city: String(form.get("city")).trim(),
       country: String(form.get("country")).trim(),
-      propertyType: String(form.get("propertyType")) as PropertyType,
+      propertyType: selectedType,
       budgetMin: price,
       budgetMax: price,
       sizeMax: size,
-      bedrooms: Number(form.get("bedrooms")) || undefined,
-      bathrooms: Number(form.get("bathrooms")) || undefined,
-      amenities,
+      bedrooms: typeConfig.showBedrooms
+        ? Number(form.get("bedrooms")) || undefined
+        : undefined,
+      bathrooms: typeConfig.showBathrooms
+        ? Number(form.get("bathrooms")) || undefined
+        : undefined,
+      propertyDetails: collectPropertyDetails(form, selectedType),
+      amenities: filterAmenitiesForPropertyType(selectedType, amenities),
       images,
       price,
     };
@@ -219,7 +310,10 @@ export default function AgencyListingForm({
         </div>
       </FormSection>
 
-      <FormSection title="Property details">
+      <FormSection
+        title="Property details"
+        description={formConfig.sectionDescription}
+      >
         <FieldGroup columns={2}>
           <div>
             <Label htmlFor="propertyType" required>
@@ -229,7 +323,10 @@ export default function AgencyListingForm({
               id="propertyType"
               name="propertyType"
               required
-              defaultValue={listing?.propertyType ?? "vacation_home"}
+              value={propertyType}
+              onChange={(event) =>
+                setPropertyType(event.target.value as PropertyType)
+              }
             >
               {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -254,39 +351,69 @@ export default function AgencyListingForm({
             />
           </div>
           <div>
-            <Label htmlFor="size">Size (m²)</Label>
+            <Label htmlFor="size">{getSingleSizeLabel(propertyType)}</Label>
             <Input
               id="size"
               name="size"
               type="number"
               min={0}
               defaultValue={listing?.sizeMax ?? listing?.sizeMin ?? ""}
-              placeholder="120"
+              placeholder={formConfig.sizePlaceholder.min}
             />
           </div>
-          <div>
-            <Label htmlFor="bedrooms">Bedrooms</Label>
-            <Input
-              id="bedrooms"
-              name="bedrooms"
-              type="number"
-              min={0}
-              defaultValue={listing?.bedrooms ?? ""}
-              placeholder="2"
-            />
-          </div>
-          <div>
-            <Label htmlFor="bathrooms">Bathrooms</Label>
-            <Input
-              id="bathrooms"
-              name="bathrooms"
-              type="number"
-              min={0}
-              defaultValue={listing?.bathrooms ?? ""}
-              placeholder="1"
-            />
-          </div>
+          {formConfig.showBedrooms ? (
+            <div>
+              <Label htmlFor="bedrooms">{formConfig.bedroomsLabel}</Label>
+              <Input
+                id="bedrooms"
+                name="bedrooms"
+                type="number"
+                min={0}
+                defaultValue={listing?.bedrooms ?? ""}
+                placeholder="2"
+              />
+            </div>
+          ) : null}
+          {formConfig.showBathrooms ? (
+            <div>
+              <Label htmlFor="bathrooms">{formConfig.bathroomsLabel}</Label>
+              <Input
+                id="bathrooms"
+                name="bathrooms"
+                type="number"
+                min={0}
+                defaultValue={listing?.bathrooms ?? ""}
+                placeholder="1"
+              />
+            </div>
+          ) : null}
         </FieldGroup>
+
+        {formConfig.extraFields.length > 0 ? (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm font-medium text-slate-700">
+              {propertyType === "land" ? "Land details" : "Additional details"}
+            </p>
+            <FieldGroup columns={2}>
+              {formConfig.extraFields.map((field) =>
+                field.type === "checkbox" ? (
+                  <ExtraFieldInput
+                    key={field.key}
+                    field={field}
+                    details={listing?.propertyDetails}
+                  />
+                ) : (
+                  <div key={field.key}>
+                    <ExtraFieldInput
+                      field={field}
+                      details={listing?.propertyDetails}
+                    />
+                  </div>
+                ),
+              )}
+            </FieldGroup>
+          </div>
+        ) : null}
       </FormSection>
 
       <FormSection
@@ -294,17 +421,15 @@ export default function AgencyListingForm({
         description="Select anything that applies. Leave unchecked if it doesn't matter."
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(Object.keys(AMENITY_LABELS) as Array<keyof RequestAmenities>).map(
-            (key) => (
-              <AmenityCheckbox
-                key={key}
-                id={key}
-                label={AMENITY_LABELS[key]}
-                checked={amenities[key]}
-                onChange={handleAmenityChange}
-              />
-            ),
-          )}
+          {formConfig.amenities.map((key) => (
+            <AmenityCheckbox
+              key={key}
+              id={key}
+              label={AMENITY_LABELS[key]}
+              checked={amenities[key]}
+              onChange={handleAmenityChange}
+            />
+          ))}
         </div>
       </FormSection>
 

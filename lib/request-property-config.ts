@@ -242,3 +242,7 @@ export function formatPropertyDetailLines(
 export function getPropertyTypeFormConfig(propertyType: PropertyType): PropertyTypeFormConfig {
   return PROPERTY_TYPE_FORM_CONFIG[propertyType];
 }
+
+export function getSingleSizeLabel(propertyType: PropertyType): string {
+  return PROPERTY_TYPE_FORM_CONFIG[propertyType].sizeMinLabel.replace(" min", "");
+}

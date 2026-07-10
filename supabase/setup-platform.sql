@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS public.listings (
   size_max numeric,
   bedrooms integer,
   bathrooms integer,
+  property_details jsonb NOT NULL DEFAULT '{}'::jsonb,
   amenities jsonb NOT NULL DEFAULT '{}'::jsonb,
   images jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
