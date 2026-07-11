@@ -149,6 +149,12 @@ export default function DashboardNav({
                 Profile
               </Link>
               <Link
+                href="/agency/listings/new"
+                className="hidden px-2 py-1 text-sm font-medium text-slate-600 hover:text-violet-600 sm:inline"
+              >
+                Add property
+              </Link>
+              <Link
                 href={messagesHref}
                 aria-label={`Messages${unread ? `, ${unread} unread` : ""}`}
                 className="relative px-2 py-1 text-slate-600 hover:text-violet-600"

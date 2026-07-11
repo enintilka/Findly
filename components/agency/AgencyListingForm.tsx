@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAgencyAuth } from "@/components/agency/AgencyAuthProvider";
 import ListingPhotoUpload from "@/components/agency/ListingPhotoUpload";
+import PropertyTypeFieldHint from "@/components/property/PropertyTypeFieldHint";
 import { FieldGroup, FormSection } from "@/components/customer/FormSection";
 import {
   createAgencyListing,
@@ -314,7 +315,7 @@ export default function AgencyListingForm({
         title="Property details"
         description={formConfig.sectionDescription}
       >
-        <FieldGroup columns={2}>
+        <FieldGroup columns={2} key={propertyType}>
           <div>
             <Label htmlFor="propertyType" required>
               Property type
@@ -334,6 +335,9 @@ export default function AgencyListingForm({
                 </option>
               ))}
             </Select>
+            <div className="mt-3">
+              <PropertyTypeFieldHint propertyType={propertyType} theme="agency" />
+            </div>
           </div>
           <div />
           <div>
@@ -390,7 +394,10 @@ export default function AgencyListingForm({
         </FieldGroup>
 
         {formConfig.extraFields.length > 0 ? (
-          <div className="mt-6 space-y-4">
+          <div
+            key={`${propertyType}-extras`}
+            className="mt-6 space-y-4 rounded-2xl border-2 border-violet-200 bg-violet-50/40 p-5"
+          >
             <p className="text-sm font-medium text-slate-700">
               {propertyType === "land" ? "Land details" : "Additional details"}
             </p>
